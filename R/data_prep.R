@@ -1,0 +1,172 @@
+#' Get 2000 US standard population
+#' @import data.table
+#' @export
+dl_us_standard_population <- function(url = "https://seer.cancer.gov/stdpopulations/stdpop.singleagesthru99.txt") {
+  dldf <- RCurl::getURL(url)
+  dldf <- strsplit(dldf, "\n")[[1]]
+  tmp_l <- nchar(dldf[1])
+
+  # data dictionary from: https://seer.cancer.gov/stdpopulations/stdpopdic.html
+  dldf <- lapply(dldf, function(x) {
+    col1 <- substr(x, 1, 3)
+    col2 <- substr(x, 4, 6)
+    col3 <- substr(x, 7, tmp_l)
+    c(col1, col2, col3)
+  })
+  dldf <- data.table(do.call(rbind, dldf))
+  setnames(dldf, c("standard", "age", "std_pop"))
+  dldf <- dldf[standard == "205"]
+  tmp_cols <-c("age", "std_pop")
+  dldf[, (tmp_cols) := lapply(.SD, as.numeric), .SDcols = tmp_cols]
+  dldf[, standard := NULL]
+  dldf[, std_pop_million := round(std_pop / sum(std_pop) * 1000000)]
+
+  age_breaks <- set_age_breaks()
+  dldf[, age_group := cut(age, breaks = age_breaks$breaks, labels = age_breaks$labels, right = F)]
+  dldf <- dldf[!is.na(age_group)]
+
+  tmp_cols <- c("std_pop_million")
+  std_pop_wgt <- dldf[, lapply(.SD, sum), by = .(age_group), .SDcols = tmp_cols]
+  std_pop_wgt[, std_pop_wgt := std_pop_million / sum(std_pop_million)]
+  std_pop_wgt[, age_group := factor(age_group, levels = set_age_breaks()$labels)]
+  return(std_pop_wgt)
+}
+
+#' Get provisional life expectancy estimates in 2020
+#' @import data.table
+#' @export
+get_provisional_le <- function(url = "https://www.cdc.gov/nchs/data/vsrr/VSRR10-508.pdf") {
+  temp_dl <- pdftools::pdf_text(url)[2]
+  temp_dl <- strsplit(temp_dl, "\n")[[1]][9:27]
+  temp_dl <- lapply(temp_dl, function(x) {
+    strsplit(gsub("\\s+", ",", x), ",")[[1]]
+  })
+  temp_dl <- do.call(rbind, temp_dl)
+  temp_dl <- data.table(temp_dl[, c(2:ncol(temp_dl))])
+  added_cols <- unlist(lapply(c("All", "Hispanic", "NHW", "NHB"), function(x)
+    paste0(x, "_", c("total", "male", "female"))))
+  setnames(temp_dl, c("age", added_cols))
+
+  le2020 <- melt(temp_dl, id.vars = "age", value.name = "avg_le")
+  tmp_cols <- c("age", "avg_le")
+  le2020[, (tmp_cols) := lapply(.SD, as.numeric), .SDcols = tmp_cols]
+
+  tmp_str <- do.call(rbind, strsplit(as.character(le2020$variable), "_"))
+  le2020[, `:=` (raceth = factor(tmp_str[, 1], levels = c("All", "NHW", "NHB", "Hispanic")),
+                 sex = factor(tmp_str[, 2], levels = c("total", "male", "female")))]
+  setcolorder(le2020, c("age", "raceth", "sex", "avg_le"))
+  le2020[, variable := NULL]
+
+  age_breaks <- set_age_breaks()
+
+  le2020[, ub := shift(age, type = "lead"), by = .(raceth, sex)]
+  le2020$ub[is.na(le2020$ub)] <- ifelse(is.infinite(max(age_breaks$breaks)), 100, max(age_breaks$breaks))
+  le2020[, expand := ub - age]
+  le2020 <- le2020[rep(c(1:.N), expand)]
+  le2020 <- le2020[order(raceth, sex, age)]
+  le2020[, add := c(0:(.N - 1)), by = .(raceth, sex, age)]
+  le2020[, age2 := age + add]
+
+  le2020[, age_group := cut(age2, breaks = age_breaks$breaks, labels = age_breaks$labels, right = F)]
+  le2020 <- le2020[!is.na(age_group)]
+  le2020 <- le2020[, list(avg_le2020 = mean(avg_le)), by = .(raceth, sex, age_group)]
+  le2020[, age_group := factor(age_group, levels = set_age_breaks()$labels)]
+
+  return(le2020)
+}
+
+#' @title County level population size
+#' @import data.table
+#' @export
+get_county_pop_size <- function() {
+  tab <- read.csv("inst/extdata/ACSST5Y2019.S0101_2021-05-11T113736/ACSST5Y2019.S0101_data_with_overlays_2021-05-11T113240.csv")
+  tmp_names <- tab[1, ]
+  col_ix <- c(1, 2, grep("Estimate!!Total", tmp_names))
+  tab <- tab[, col_ix]
+
+  tmp_names <- tmp_names[col_ix]
+  tmp_names <- trimws(unlist(lapply(tmp_names, function(x) gsub("[^\\d]+", " ", x, perl = T))))
+  tmp_names <- gsub(" ", "to", tmp_names)
+  tmp_names <- ifelse(tmp_names != "", paste0("age", tmp_names), tmp_names)
+  tmp_names[1:2] <- c("fips", "county_state")
+  col_ix <- which(tmp_names != "")
+  tmp_names <- unname(tmp_names[col_ix])
+
+  tab <- tab[2:nrow(tab), col_ix]
+  colnames(tab) <- tmp_names
+
+  age_cols <- paste0("age", c("15to19", "15to17", "20to24", "25to29", "30to34", "35to39",
+                              "40to44", "45to49", "50to54", "55to59", "60to64",
+                              "65to69", "70to74", "75to79", "80to84", "85"))
+
+  keep_cols <- c("fips", "county_state", age_cols)
+  tab <- data.table(tab[, keep_cols])
+  tab[, (age_cols) := lapply(.SD, as.numeric), .SDcols = age_cols]
+  tab[, `:=` (age18to29 = (age15to19 - age15to17) + age20to24 + age25to29,
+              age30to39 = age30to34 + age35to39,
+              age40to49 = age40to44 + age45to49,
+              age50to64 = age50to54 + age55to59 + age60to64,
+              age65to74 = age65to69 + age70to74,
+              age75to84 = age75to79 + age80to84,
+              age85over = age85)]
+
+  age_cols <- paste0("age", c("18to29", "30to39", "40to49", "50to64",
+                              "65to74", "75to84", "85over"))
+  keep_cols <- c("fips", "county_state", age_cols)
+
+  tab <- unique(tab[, ..keep_cols])
+
+  tab_long <- melt(tab, id.vars = c("fips", "county_state"), value.name = "pop_size")
+  tab_long[, fips := as.numeric(gsub("0500000US", "", fips))]
+  tmp_str <- do.call(rbind, strsplit(tab_long$county_state, ", "))
+  tab_long[, `:=` (county_name = tmp_str[, 1],
+                   state_name = tmp_str[, 2])]
+  state_dt <- get_states()
+  tab_long <- merge(tab_long, state_dt, by = c("state_name"), all.x = T)
+  tab_long <- tab_long[!is.na(state)]
+
+  # check whether there are 3142 counties
+  n_cnty <- get_county_info()$n_cnty
+  if (length(unique(tab_long$fips)) != n_cnty) {
+    stop("The number of counties is not 3142")
+  }
+
+  tab_long[, age_group := gsub("to", "-", gsub("age", "", variable))]
+  tab_long$age_group[tab_long$age_group == "85over"] <- "85+"
+  tab_long[, age_group := factor(age_group, levels = set_age_breaks()$labels)]
+  keep_cols <- c("fips", "county_name", "state", "age_group", "pop_size")
+  tab_long <- tab_long[, ..keep_cols][order(fips, age_group)]
+  return(tab_long)
+}
+
+#' @title Provisional COVID-19 death by quarter in 2020
+#' @import data.table
+#' @export
+get_covid_death <- function() {
+  tab <- read.csv("inst/extdata/AH_Provisional_COVID-19_Deaths_by_Quarter__County_and_Age_for_2020.csv")
+  tab <- data.table(tab)
+  colnames(tab) <- tolower(colnames(tab))
+  colnames(tab) <- gsub("\\.", "_", colnames(tab))
+
+  tmp_start <- unlist(lapply(strsplit(tab$start_date, "/"), function(x) {
+    paste0(x[3], "-", x[1], "-", x[2])
+  }))
+  tmp_end <- unlist(lapply(strsplit(tab$end_date, "/"), function(x) {
+    paste0(x[3], "-", x[1], "-", x[2])
+  }))
+
+  tab[, `:=` (start_date = as.Date(tmp_start),
+              end_date = as.Date(tmp_end))]
+  tab[, fips := copy(fips_code)]
+  tab$age_group[tab$age_group == "85 years and over"] <- "85+"
+  tab[, age_group := gsub(" years", "", age_group)]
+  tab[, age_group := factor(age_group, levels = set_age_breaks()$labels)]
+  tab <- tab[!is.na(age_group)]
+
+  keep_cols <- c("fips", "county", "state", "urban_rural_code", "year", "quarter",
+                 "start_date", "end_date", "age_group", "covid_19_deaths", "total_deaths")
+  tab <- tab[, ..keep_cols][order(fips, quarter, age_group)]
+  return(tab)
+}
+
+
