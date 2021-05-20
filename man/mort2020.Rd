@@ -5,7 +5,7 @@
 \alias{mort2020}
 \title{mort2020}
 \format{
-An object of class \code{data.table} (inherits from \code{data.frame}) with 87920 rows and 12 columns.
+An object of class \code{data.table} (inherits from \code{data.frame}) with 87864 rows and 12 columns.
 }
 \usage{
 mort2020
