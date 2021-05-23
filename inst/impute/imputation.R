@@ -7,6 +7,7 @@ library(rstan)
 library(MASS)
 library(tidyverse)
 library(brms)
+library(ggpubr)
 
 # ### Using brms to get the stan code to base on
 # mort2020$state_num <- as.numeric(as.factor(mort2020$state))
@@ -98,29 +99,30 @@ print(Sys.time() - begin_time)
 
 saveRDS(fit1, "inst/impute/results/fit1.RDS")
 
+fit1 <- readRDS("inst/impute/results/fit1.RDS")
 
 pars <- c("b", "b_Intercept", "shape")
 sum_estimates <- round(summary(fit1, pars = pars, probs = c(0.025, 0.975))$summary, 3)
-# saveRDS(sum_estimates, "inst/impute/results/sum_estimates.RDS")
+saveRDS(sum_estimates, "inst/impute/results/sum_estimates.RDS")
 
 traceplot(fit1, pars = c("b", "b_Intercept", "shape"))
-# ggsave("inst/impute/results/traceplot of fixed effects.tiff", device = "tiff",
-#        height = 12, width = 14)
+ggsave("inst/impute/results/traceplot of fixed effects.png", device = "png",
+       height = 12, width = 14)
 
 
 library(parallel)
 
 ix_ymis <- grep("Ymi", names(fit1@sim$samples[[1]]))
 ymis_draws <- mclapply(ix_ymis, function(x) {
-  y <- c(fit1@sim$samples[[1]][[x]][2001:fit1@sim$iter],
-         fit1@sim$samples[[2]][[x]][2001:fit1@sim$iter],
-         fit1@sim$samples[[3]][[x]][2001:fit1@sim$iter],
-         fit1@sim$samples[[4]][[x]][2001:fit1@sim$iter])
-  round(y)
+  y <- c(fit1@sim$samples[[1]][[x]][1001:fit1@sim$iter],
+         fit1@sim$samples[[2]][[x]][1001:fit1@sim$iter],
+         fit1@sim$samples[[3]][[x]][1001:fit1@sim$iter],
+         fit1@sim$samples[[4]][[x]][1001:fit1@sim$iter])
+  ceiling(y)
 }, mc.cores = 6)
 
 set.seed(521)
-x_samp <- sample(c(1:length(ix_ymis)), 1000, rep = F)
+x_samp <- sample(c(1:length(ymis_draws[[1]])), 1000, rep = F)
 
 ymis_draws <- mclapply(ymis_draws, function(x) {
   x[x_samp]
@@ -128,6 +130,8 @@ ymis_draws <- mclapply(ymis_draws, function(x) {
 ymis_draws <- do.call(cbind, ymis_draws)
 
 # Calculate 95% credible intervals for the proportion of counties with 1-9 COVID-19 deaths
+data(mort2020)
+mort2020[, y := covid_19_deaths + 1]
 mort2020[, suppress := ifelse(is.na(covid_19_deaths), "suppressed", "non-suppressed")]
 mort2020[, y_new := y - 1]
 
@@ -159,7 +163,7 @@ g1 <- ggplot(data = covid19deaths_sum) +
   xlab("number of COVID-19 deaths") +
   ylab("proportion of counties") +
   ggtitle("(A) Distribution of COVID-19 deaths by quarters") +
-  scale_fill_manual(values = c("deepskyblue", "gray")) +
+  scale_fill_manual(values = c("gray", "deepskyblue")) +
   theme_bw() +
   theme(plot.title = element_text(size = 18, hjust = 0.5),
         strip.text.x = element_text(size = 12, colour = "gray20"),
@@ -181,7 +185,7 @@ g2 <- ggplot(data = covid19deaths_sum[y_cate != "0"]) +
   xlab("number of COVID-19 deaths") +
   ylab("proportion of counties") +
   ggtitle("(B) Distribution of COVID-19 deaths by quarters (death counts >0)") +
-  scale_fill_manual(values = c("deepskyblue", "gray")) +
+  scale_fill_manual(values = c("gray", "deepskyblue")) +
   theme_bw() +
   theme(plot.title = element_text(size = 18, hjust = 0.5),
         strip.text.x = element_text(size = 12, colour = "gray20"),
@@ -226,7 +230,7 @@ g1 <- ggplot(data = covid19deaths_sum) +
   xlab("number of COVID-19 deaths") +
   ylab("proportion of counties") +
   ggtitle("(A) Distribution of COVID-19 deaths by age group") +
-  scale_fill_manual(values = c("deepskyblue", "gray")) +
+  scale_fill_manual(values = c("gray", "deepskyblue")) +
   theme_bw() +
   theme(plot.title = element_text(size = 18, hjust = 0.5),
         strip.text.x = element_text(size = 12, colour = "gray20"),
@@ -248,7 +252,7 @@ g2 <- ggplot(data = covid19deaths_sum[y_cate != "0"]) +
   xlab("number of COVID-19 deaths") +
   ylab("proportion of counties") +
   ggtitle("(B) Distribution of COVID-19 deaths by age group (death counts >0)") +
-  scale_fill_manual(values = c("deepskyblue", "gray")) +
+  scale_fill_manual(values = c("gray", "deepskyblue")) +
   theme_bw() +
   theme(plot.title = element_text(size = 18, hjust = 0.5),
         strip.text.x = element_text(size = 12, colour = "gray20"),
@@ -293,7 +297,7 @@ g1 <- ggplot(data = covid19deaths_sum) +
   xlab("number of COVID-19 deaths") +
   ylab("proportion of counties") +
   ggtitle("(A) Distribution of COVID-19 deaths by urban rural characteristics") +
-  scale_fill_manual(values = c("deepskyblue", "gray")) +
+  scale_fill_manual(values = c("gray", "deepskyblue")) +
   theme_bw() +
   theme(plot.title = element_text(size = 18, hjust = 0.5),
         strip.text.x = element_text(size = 12, colour = "gray20"),
@@ -315,7 +319,7 @@ g2 <- ggplot(data = covid19deaths_sum[y_cate != "0"]) +
   xlab("number of COVID-19 deaths") +
   ylab("proportion of counties") +
   ggtitle("(B) Distribution of COVID-19 deaths by urban rural characteristics\n(death counts >0)") +
-  scale_fill_manual(values = c("deepskyblue", "gray")) +
+  scale_fill_manual(values = c("gray", "deepskyblue")) +
   theme_bw() +
   theme(plot.title = element_text(size = 18, hjust = 0.5),
         strip.text.x = element_text(size = 12, colour = "gray20"),
@@ -331,9 +335,85 @@ ggarrange(g1, g2, nrow = 2, common.legend = T)
 ggsave("inst/impute/results/impute distribution_rucc.tiff", device = "tiff", height = 12, width = 10)
 
 
+# posterior predictive check
+ix_ysim <- grep("y_sim", names(fit1@sim$samples[[1]]))
+ysim_draws <- mclapply(ix_ysim, function(x) {
+  y <- c(fit1@sim$samples[[1]][[x]][1001:fit1@sim$iter],
+         fit1@sim$samples[[2]][[x]][1001:fit1@sim$iter],
+         fit1@sim$samples[[3]][[x]][1001:fit1@sim$iter],
+         fit1@sim$samples[[4]][[x]][1001:fit1@sim$iter])
+  ceiling(y)
+}, mc.cores = 6)
 
+set.seed(521)
+x_samp <- sample(c(1:length(ysim_draws[[1]])), 1000, rep = F)
 
+ysim_draws <- mclapply(ysim_draws, function(x) {
+  x[x_samp]
+}, mc.cores = 6)
+ysim_draws <- do.call(cbind, ysim_draws)
 
+# Calculate 95% credible intervals for the proportion of counties with 1-9 COVID-19 deaths
+master_dt <- data.table(expand.grid(y_cate = paste0(c(0:19, "20+")),
+                                                    quarter = c(1:4)))
 
+mort2020[, suppress := ifelse(is.na(covid_19_deaths), "suppressed", "non-suppressed")]
+mort2020[, y_new := y - 1]
+mort2020[, y_cate := as.character(y_new)]
+mort2020[, y_cate := ifelse(y_new >= 20, "20+", y_cate)]
+mort2020$y_cate <- factor(mort2020$y_cate, levels = paste0(c(0:19, "20+")))
+
+sum_dist <- mort2020[, list(N = .N), by = .(y_cate, quarter)]
+sum_dist[, pct := N / sum(N), by = .(quarter)]
+sum_dist[order(y_cate, quarter)]
+sum_dist <- sum_dist[!is.na(y_cate)]
+
+master_dt <- merge(master_dt, sum_dist, by = c("y_cate", "quarter"), all.x = T)
+master_dt$pct[is.na(master_dt$pct)] <- 0
+master_dt[, `:=` (type = "data", N = NULL)]
+
+covid19deaths_dist <- mclapply(c(1:nrow(ymis_draws)), function(x) {
+  tmp_y <- ysim_draws[x, ] - 1
+  mort2020[, y_sim := tmp_y]
+
+  mort2020[, y_cate := as.character(y_sim)]
+  mort2020[, y_cate := ifelse(y_sim >= 20, "20+", y_cate)]
+  mort2020$y_cate <- factor(mort2020$y_cate, levels = paste0(c(0:19, "20+")))
+
+  out <- mort2020[, list(N = .N), by = .(y_cate, quarter)]
+  out[, pct := N / sum(N), by = .(quarter)]
+  out[order(y_cate, quarter)]
+}, mc.cores = 6)
+
+covid19deaths_dist <- rbindlist(covid19deaths_dist)
+covid19deaths_sum <- covid19deaths_dist[, list(pct = mean(pct),
+                                               lb = quantile(pct, prob = 0.025),
+                                               ub = quantile(pct, prob = 0.975)),
+                                        by = .(y_cate, quarter)]
+covid19deaths_sum[, type := "simulated"]
+covid19deaths_sum <- rbindlist(list(covid19deaths_sum, master_dt), use.names = T, fill = T)
+covid19deaths_sum[, type := factor(type, levels = c("data", "simulated"))]
+
+ggplot(data = covid19deaths_sum) +
+  geom_bar(aes(x = y_cate, y = pct, fill = type),
+           stat = "identity", color = "gray30", position = "dodge2", size = 0.1) +
+  facet_wrap(.~quarter, scale = "free_y") +
+  xlab("number of COVID-19 deaths") +
+  ylab("proportion of counties") +
+  ggtitle("Distribution of COVID-19 deaths by quarters (simulated and data)") +
+  scale_fill_manual(values = c("gray", "deepskyblue")) +
+  theme_bw() +
+  theme(plot.title = element_text(size = 18, hjust = 0.5),
+        strip.text.x = element_text(size = 12, colour = "gray20"),
+        strip.background = element_rect(colour = NA, fill = "white"),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 10),
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title.x = element_text(size = 14),
+        axis.title.y = element_text(size = 14),
+        legend.position = "bottom")
+
+ggsave("inst/impute/results/distribution simulated and data.tiff", device = "tiff", height = 12, width = 10)
 
 
