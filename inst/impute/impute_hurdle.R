@@ -64,7 +64,8 @@ mort2020$urban_rural_code <- factor(mort2020$urban_rural_code,
 mort2020$quarter <- factor(mort2020$quarter)
 mort2020[, l_pop_size := log(pop_size + 1)]
 
-X <- model.matrix( ~ age_group * quarter + urban_rural_code + l_pop_size, data = mort2020)
+X <- model.matrix( ~ age_group + quarter + urban_rural_code + l_pop_size, data = mort2020)
+X_hu <- model.matrix( ~ 1 + quarter, data = mort2020)
 
 mort2020[, y := copy(covid_19_deaths)]
 
@@ -139,6 +140,12 @@ ymis_draws <- mclapply(ymis_draws, function(x) {
 }, mc.cores = 6)
 ymis_draws <- do.call(cbind, ymis_draws)
 
+ix_miss <- which(is.na(mort2020$covid_19_deaths))
+
+saveRDS(list(ix_miss = ix_miss,
+             ymis_draws = ymis_draws), "inst/impute/bayes_impute.RDS")
+
+
 # Calculate 95% credible intervals for the proportion of counties with 1-9 COVID-19 deaths
 data(mort2020)
 mort2020[, y := copy(covid_19_deaths)]
@@ -165,13 +172,14 @@ covid19deaths_sum <- covid19deaths_dist[, list(mean_pct = mean(pct),
                                                ub = quantile(pct, prob = 0.975)),
                                         by = .(y_cate, quarter)]
 covid19deaths_sum[, suppress := ifelse(y_cate %in% paste0(c(1:9)), "imputed", "non-suppressed")]
+covid19deaths_sum[, quarter := paste0("Q", quarter)]
 
 g1 <- ggplot(data = covid19deaths_sum) +
   geom_bar(aes(x = y_cate, y = mean_pct, fill = suppress),
            stat = "identity", color = "gray30") +
   facet_wrap(.~quarter, scale = "free_y") +
-  xlab("number of COVID-19 deaths") +
-  ylab("proportion of counties") +
+  xlab("Number of COVID-19 Deaths") +
+  ylab("Proportion of Data") +
   ggtitle("(A) Distribution of COVID-19 deaths by quarters") +
   scale_fill_manual(values = c("gray", "deepskyblue")) +
   theme_bw() +
@@ -192,8 +200,8 @@ g2 <- ggplot(data = covid19deaths_sum[y_cate != "0"]) +
   geom_errorbar(aes(x = y_cate, ymin = lb, ymax = ub),
                 width = 0, color = "gray30", size = 0.5) +
   facet_wrap(.~quarter, scale = "free_y") +
-  xlab("number of COVID-19 deaths") +
-  ylab("proportion of counties") +
+  xlab("Number of COVID-19 Deaths") +
+  ylab("Proportion of Data") +
   ggtitle("(B) Distribution of COVID-19 deaths by quarters (death counts >0)") +
   scale_fill_manual(values = c("gray", "deepskyblue")) +
   theme_bw() +
@@ -220,52 +228,35 @@ covid19deaths_dist <- mclapply(c(1:nrow(ymis_draws)), function(x) {
   mort2020[, y_cate := ifelse(y_new >= 20, "20+", y_cate)]
   mort2020$y_cate <- factor(mort2020$y_cate, levels = paste0(c(0:19, "20+")))
 
-  out <- mort2020[, list(N = .N), by = .(y_cate, age_group)]
-  out[, pct := N / sum(N), by = .(age_group)]
+  out <- mort2020[, list(N = .N), by = .(y_cate, age_group, quarter)]
+  out[, pct := N / sum(N), by = .(age_group, quarter)]
   out[, suppress := ifelse(y_cate %in% paste0(c(1:9)), "suppressed", "non-suppressed")]
-  out[order(y_cate, age_group)]
+  out[order(y_cate, age_group, quarter)]
 }, mc.cores = 6)
 
 covid19deaths_dist <- rbindlist(covid19deaths_dist)
 covid19deaths_sum <- covid19deaths_dist[, list(mean_pct = mean(pct),
                                                lb = quantile(pct, prob = 0.025),
                                                ub = quantile(pct, prob = 0.975)),
-                                        by = .(y_cate, age_group)]
+                                        by = .(y_cate, age_group, quarter)]
 covid19deaths_sum[, suppress := ifelse(y_cate %in% paste0(c(1:9)), "imputed", "non-suppressed")]
-
-g1 <- ggplot(data = covid19deaths_sum) +
-  geom_bar(aes(x = y_cate, y = mean_pct, fill = suppress),
-           stat = "identity", color = "gray30") +
-  facet_wrap(.~age_group, scale = "free_y") +
-  xlab("number of COVID-19 deaths") +
-  ylab("proportion of counties") +
-  ggtitle("(A) Distribution of COVID-19 deaths by age group") +
-  scale_fill_manual(values = c("gray", "deepskyblue")) +
-  theme_bw() +
-  theme(plot.title = element_text(size = 18, hjust = 0.5),
-        strip.text.x = element_text(size = 12, colour = "gray20"),
-        strip.background = element_rect(colour = NA, fill = "white"),
-        legend.title = element_blank(),
-        legend.text = element_text(size = 10),
-        axis.text.x = element_text(size = 10),
-        axis.text.y = element_text(size = 10),
-        axis.title.x = element_text(size = 14),
-        axis.title.y = element_text(size = 14),
-        legend.position = "bottom")
+covid19deaths_sum[, `:=` (quarter = paste0("Q", quarter),
+                          age_group = paste0("Age", age_group))]
 
 g2 <- ggplot(data = covid19deaths_sum[y_cate != "0"]) +
   geom_bar(aes(x = y_cate, y = mean_pct, fill = suppress),
            stat = "identity", color = "gray30") +
   geom_errorbar(aes(x = y_cate, ymin = lb, ymax = ub),
                 width = 0, color = "gray30", size = 0.5) +
-  facet_wrap(.~age_group) + #, scale = "free_y") +
-  xlab("number of COVID-19 deaths") +
-  ylab("proportion of counties") +
-  ggtitle("(B) Distribution of COVID-19 deaths by age group (death counts >0)") +
-  scale_fill_manual(values = c("gray", "deepskyblue")) +
+  facet_grid(age_group ~ quarter, scale = "free") +
+  xlab("Number of COVID-19 Deaths") +
+  ylab("Proportion of Counties") +
+  ggtitle("Distribution of county COVID-19 deaths (positive only)") +
+  scale_fill_manual(values = c("deepskyblue", "gray")) +
   theme_bw() +
   theme(plot.title = element_text(size = 18, hjust = 0.5),
         strip.text.x = element_text(size = 12, colour = "gray20"),
+        strip.text.y = element_text(size = 12, colour = "gray20"),
         strip.background = element_rect(colour = NA, fill = "white"),
         legend.title = element_blank(),
         legend.text = element_text(size = 10),
@@ -274,8 +265,9 @@ g2 <- ggplot(data = covid19deaths_sum[y_cate != "0"]) +
         axis.title.x = element_text(size = 14),
         axis.title.y = element_text(size = 14),
         legend.position = "bottom")
-ggarrange(g1, g2, nrow = 2, common.legend = T)
-ggsave("inst/impute/results/impute distribution_age_hurdle.tiff", device = "tiff", height = 12, width = 12)
+# ggarrange(g1, g2, nrow = 2, common.legend = T)
+ggsave("inst/impute/results/impute distribution_age_hurdle.png",
+       plot = g2, device = "png", height = 10, width = 18)
 
 
 # Calculate 95% credible intervals for the proportion of counties with 1-9 COVID-19 deaths
@@ -287,8 +279,8 @@ covid19deaths_dist <- mclapply(c(1:nrow(ymis_draws)), function(x) {
   mort2020[, y_cate := ifelse(y_new >= 20, "20+", y_cate)]
   mort2020$y_cate <- factor(mort2020$y_cate, levels = paste0(c(0:19, "20+")))
 
-  out <- mort2020[, list(N = .N), by = .(y_cate, urban_rural_code)]
-  out[, pct := N / sum(N), by = .(urban_rural_code)]
+  out <- mort2020[, list(N = .N), by = .(y_cate, urban_rural_code, age_group, quarter)]
+  out[, pct := N / sum(N), by = .(urban_rural_code, age_group, quarter)]
   out[, suppress := ifelse(y_cate %in% paste0(c(1:9)), "suppressed", "non-suppressed")]
   out[order(y_cate, urban_rural_code)]
 }, mc.cores = 6)
@@ -297,52 +289,54 @@ covid19deaths_dist <- rbindlist(covid19deaths_dist)
 covid19deaths_sum <- covid19deaths_dist[, list(mean_pct = mean(pct),
                                                lb = quantile(pct, prob = 0.025),
                                                ub = quantile(pct, prob = 0.975)),
-                                        by = .(y_cate, urban_rural_code)]
+                                        by = .(y_cate, urban_rural_code, age_group, quarter)]
 covid19deaths_sum[, suppress := ifelse(y_cate %in% paste0(c(1:9)), "imputed", "non-suppressed")]
+covid19deaths_sum[, `:=` (quarter = paste0("Q", quarter),
+                          age_group = paste0("Age", age_group))]
 
-g1 <- ggplot(data = covid19deaths_sum) +
-  geom_bar(aes(x = y_cate, y = mean_pct, fill = suppress),
-           stat = "identity", color = "gray30") +
-  facet_wrap(.~urban_rural_code, scale = "free_y") +
-  xlab("number of COVID-19 deaths") +
-  ylab("proportion of counties") +
-  ggtitle("(A) Distribution of COVID-19 deaths by urban rural characteristics") +
-  scale_fill_manual(values = c("gray", "deepskyblue")) +
-  theme_bw() +
-  theme(plot.title = element_text(size = 18, hjust = 0.5),
-        strip.text.x = element_text(size = 12, colour = "gray20"),
-        strip.background = element_rect(colour = NA, fill = "white"),
-        legend.title = element_blank(),
-        legend.text = element_text(size = 10),
-        axis.text.x = element_text(size = 10),
-        axis.text.y = element_text(size = 10),
-        axis.title.x = element_text(size = 14),
-        axis.title.y = element_text(size = 14),
-        legend.position = "bottom")
 
-g2 <- ggplot(data = covid19deaths_sum[y_cate != "0"]) +
-  geom_bar(aes(x = y_cate, y = mean_pct, fill = suppress),
-           stat = "identity", color = "gray30") +
-  geom_errorbar(aes(x = y_cate, ymin = lb, ymax = ub),
-                width = 0, color = "gray30", size = 0.5) +
-  facet_wrap(.~urban_rural_code) + #, scale = "free_y") +
-  xlab("number of COVID-19 deaths") +
-  ylab("proportion of counties") +
-  ggtitle("(B) Distribution of COVID-19 deaths by urban rural characteristics\n(death counts >0)") +
-  scale_fill_manual(values = c("gray", "deepskyblue")) +
-  theme_bw() +
-  theme(plot.title = element_text(size = 18, hjust = 0.5),
-        strip.text.x = element_text(size = 12, colour = "gray20"),
-        strip.background = element_rect(colour = NA, fill = "white"),
-        legend.title = element_blank(),
-        legend.text = element_text(size = 10),
-        axis.text.x = element_text(size = 10),
-        axis.text.y = element_text(size = 10),
-        axis.title.x = element_text(size = 14),
-        axis.title.y = element_text(size = 14),
-        legend.position = "bottom")
-ggarrange(g1, g2, nrow = 2, common.legend = T)
-ggsave("inst/impute/results/impute distribution_rucc_hurdle.tiff", device = "tiff", height = 12, width = 12)
+rucc_ls <- unique(covid19deaths_sum$urban_rural_code)
+
+master_dt <- data.table(expand.grid(y_cate = unique(covid19deaths_sum$y_cate),
+                                    urban_rural_code = rucc_ls,
+                                    age_group = unique(covid19deaths_sum$age_group),
+                                    quarter = unique(covid19deaths_sum$quarter)))
+covid19deaths_sum <- merge(master_dt, covid19deaths_sum,
+                           by = c("y_cate", "urban_rural_code", "age_group", "quarter"),
+                           all.x = T)
+n_counties <- unique(mort2020[, .(fips, urban_rural_code)])
+n_counties <- n_counties[, list(N = .N), by = .(urban_rural_code)]
+
+for (x in rucc_ls) {
+  tmp_n_cnty <- n_counties[urban_rural_code == x]$N
+
+  g2 <- ggplot(data = covid19deaths_sum[y_cate != "0" &
+                                          urban_rural_code == x]) +
+    geom_bar(aes(x = y_cate, y = mean_pct, fill = suppress),
+             stat = "identity", color = "gray30") +
+    geom_errorbar(aes(x = y_cate, ymin = lb, ymax = ub),
+                  width = 0, color = "gray30", size = 0.5) +
+    facet_grid(age_group ~ quarter, scale = "free") +
+    xlab("Number of COVID-19 Deaths") +
+    ylab("Proportion of Counties") +
+    ggtitle(paste0(x, " (positive only): number of counties = ", tmp_n_cnty)) +
+    scale_fill_manual(values = c("deepskyblue", "gray")) +
+    theme_bw() +
+    theme(plot.title = element_text(size = 20, hjust = 0.5),
+          strip.text.x = element_text(size = 12, colour = "gray20"),
+          strip.text.y = element_text(size = 12, colour = "gray20"),
+          strip.background = element_rect(colour = NA, fill = "white"),
+          legend.title = element_blank(),
+          legend.text = element_text(size = 10),
+          axis.text.x = element_text(size = 10),
+          axis.text.y = element_text(size = 10),
+          axis.title.x = element_text(size = 14),
+          axis.title.y = element_text(size = 14),
+          legend.position = "bottom")
+
+  ggsave(paste0("inst/impute/results/impute distribution_hurdle (", x, ").png"),
+         plot = g2, device = "png", height = 10, width = 18)
+}
 
 
 # posterior predictive check
@@ -364,7 +358,8 @@ ysim_draws <- do.call(cbind, ysim_draws)
 
 # Calculate 95% credible intervals for the proportion of counties with 1-9 COVID-19 deaths
 master_dt <- data.table(expand.grid(y_cate = paste0(c(0:19, "20+")),
-                                    quarter = c(1:4)))
+                                    quarter = c(1:4),
+                                    age_group = unique(mort2020$age_group)))
 
 mort2020[, suppress := ifelse(is.na(covid_19_deaths), "suppressed", "non-suppressed")]
 mort2020[, y_new := copy(y)]
@@ -372,13 +367,13 @@ mort2020[, y_cate := as.character(y_new)]
 mort2020[, y_cate := ifelse(y_new >= 20, "20+", y_cate)]
 mort2020$y_cate <- factor(mort2020$y_cate, levels = paste0(c(0:19, "20+")))
 
-sum_dist <- mort2020[, list(N = .N), by = .(y_cate, quarter)]
-sum_dist[, pct := N / sum(N), by = .(quarter)]
-sum_dist[order(y_cate, quarter)]
+sum_dist <- mort2020[, list(N = .N), by = .(y_cate, quarter, age_group)]
+sum_dist[, pct := N / sum(N), by = .(age_group, quarter)]
+sum_dist[order(y_cate, age_group, quarter)]
 sum_dist <- sum_dist[!is.na(y_cate)]
 
-master_dt <- merge(master_dt, sum_dist, by = c("y_cate", "quarter"), all.x = T)
-master_dt$pct[is.na(master_dt$pct)] <- 0
+master_dt <- merge(master_dt, sum_dist, by = c("y_cate", "quarter", "age_group"), all.x = T)
+# master_dt$pct[is.na(master_dt$pct)] <- 0
 master_dt[, `:=` (type = "data", N = NULL)]
 
 covid19deaths_dist <- mclapply(c(1:nrow(ymis_draws)), function(x) {
@@ -389,31 +384,33 @@ covid19deaths_dist <- mclapply(c(1:nrow(ymis_draws)), function(x) {
   mort2020[, y_cate := ifelse(y_sim >= 20, "20+", y_cate)]
   mort2020$y_cate <- factor(mort2020$y_cate, levels = paste0(c(0:19, "20+")))
 
-  out <- mort2020[, list(N = .N), by = .(y_cate, quarter)]
-  out[, pct := N / sum(N), by = .(quarter)]
-  out[order(y_cate, quarter)]
+  out <- mort2020[, list(N = .N), by = .(y_cate, quarter, age_group)]
+  out[, pct := N / sum(N), by = .(quarter, age_group)]
+  out[order(y_cate, quarter, age_group)]
 }, mc.cores = 6)
 
 covid19deaths_dist <- rbindlist(covid19deaths_dist)
 covid19deaths_sum <- covid19deaths_dist[, list(pct = mean(pct),
                                                lb = quantile(pct, prob = 0.025),
                                                ub = quantile(pct, prob = 0.975)),
-                                        by = .(y_cate, quarter)]
+                                        by = .(y_cate, quarter, age_group)]
 covid19deaths_sum[, type := "simulated"]
 covid19deaths_sum <- rbindlist(list(covid19deaths_sum, master_dt), use.names = T, fill = T)
 covid19deaths_sum[, type := factor(type, levels = c("data", "simulated"))]
+covid19deaths_sum[, `:=` (quarter = paste0("Q", quarter),
+                          age_group = paste0("Age", age_group))]
 
-ggplot(data = covid19deaths_sum) +
+ggplot(data = covid19deaths_sum[y_cate != "0"]) +
   geom_bar(aes(x = y_cate, y = pct, fill = type),
-           stat = "identity", color = "gray30", position = "dodge2", size = 0.1) +
-  facet_wrap(.~quarter, scale = "free_y") +
-  xlab("number of COVID-19 deaths") +
-  ylab("proportion of counties") +
-  ggtitle("Distribution of COVID-19 deaths by quarters (simulated and data)") +
+           stat = "identity", color = "gray30", position = "dodge2", size = 0.3) +
+  facet_grid(age_group~quarter, scale = "free") +
+  xlab("Number of COVID-19 Deaths") +
+  ylab("Proportion of Counties") +
+  ggtitle("Distribution of county-level COVID-19 deaths (positive only; simulated vs data)") +
   scale_fill_manual(values = c("gray", "deepskyblue")) +
   theme_bw() +
-  theme(plot.title = element_text(size = 18, hjust = 0.5),
-        strip.text.x = element_text(size = 12, colour = "gray20"),
+  theme(plot.title = element_text(size = 20, hjust = 0.5),
+        strip.text = element_text(size = 12, colour = "gray20"),
         strip.background = element_rect(colour = NA, fill = "white"),
         legend.title = element_blank(),
         legend.text = element_text(size = 10),
@@ -422,84 +419,51 @@ ggplot(data = covid19deaths_sum) +
         axis.title.x = element_text(size = 14),
         axis.title.y = element_text(size = 14),
         legend.position = "bottom")
+ggsave(paste0("inst/impute/results/distribution simulated and data_hurdle.png"),
+       device = "png", height = 10, width = 18)
 
-ggsave("inst/impute/results/distribution simulated and data_hurdle.tiff", device = "tiff", height = 6, width = 12)
 
+covid19deaths_sum[, label := round(pct, 2)]
 
-# Calculate 95% credible intervals for the proportion of counties with 1-9 COVID-19 deaths by age_group
-master_dt <- data.table(expand.grid(age_group = levels(mort2020$age_group),
-                                    y_cate = paste0(c(0:19, "20+")),
-                                    quarter = c(1:4)))
+ggplot(data = covid19deaths_sum[y_cate == "0"]) +
+  geom_bar(aes(x = type, y = pct, fill = type),
+           stat = "identity", color = "gray30", position = "dodge2", size = 0.3) +
+  geom_text(aes(x = type, y = 0.5, label = label,
+                group = type),
+            stat = "identity", position = "stack", vjust = 1.5, size = 4) +
+  facet_grid(age_group~quarter, scale = "free") +
+  ylab("Proportion of Counties") +
+  ggtitle("Proportion of counties with zero COVID-19 death (simulated vs data)") +
+  scale_fill_manual(values = c("gray", "deepskyblue")) +
+  theme_bw() +
+  theme(plot.title = element_text(size = 20, hjust = 0.5),
+        strip.text = element_text(size = 12, colour = "gray20"),
+        strip.background = element_rect(colour = NA, fill = "white"),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 10),
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title.x = element_blank(),
+        axis.title.y = element_text(size = 14),
+        legend.position = "none")
+ggsave(paste0("inst/impute/results/distribution simulated and data prop zeros_hurdle.png"),
+       device = "png", height = 8, width = 10)
 
-sum_dist <- mort2020[, list(N = .N), by = .(y_cate, age_group, quarter)]
-sum_dist[, pct := N / sum(N), by = .(age_group, quarter)]
-sum_dist[order(age_group, y_cate, quarter)]
-sum_dist <- sum_dist[!is.na(y_cate)]
-
-master_dt <- merge(master_dt, sum_dist, by = c("age_group", "y_cate", "quarter"), all.x = T)
-master_dt$pct[is.na(master_dt$pct)] <- 0
-master_dt[, `:=` (type = "data", N = NULL)]
-
-covid19deaths_dist <- mclapply(c(1:nrow(ymis_draws)), function(x) {
-  tmp_y <- ysim_draws[x, ]
-  mort2020[, y_sim := tmp_y]
-
-  mort2020[, y_cate := as.character(y_sim)]
-  mort2020[, y_cate := ifelse(y_sim >= 20, "20+", y_cate)]
-  mort2020$y_cate <- factor(mort2020$y_cate, levels = paste0(c(0:19, "20+")))
-
-  out <- mort2020[, list(N = .N), by = .(age_group, y_cate, quarter)]
-  out[, pct := N / sum(N), by = .(age_group, quarter)]
-  out[order(age_group, y_cate, quarter)]
-}, mc.cores = 6)
-
-covid19deaths_dist <- rbindlist(covid19deaths_dist)
-covid19deaths_sum <- covid19deaths_dist[, list(pct = mean(pct),
-                                               lb = quantile(pct, prob = 0.025),
-                                               ub = quantile(pct, prob = 0.975)),
-                                        by = .(age_group, y_cate, quarter)]
-covid19deaths_sum[, type := "simulated"]
-covid19deaths_sum <- rbindlist(list(covid19deaths_sum, master_dt), use.names = T, fill = T)
-covid19deaths_sum[, type := factor(type, levels = c("data", "simulated"))]
-
-for (i in levels(mort2020$age_group)) {
-  ggplot(data = covid19deaths_sum[age_group == i]) +
-    geom_bar(aes(x = y_cate, y = pct, fill = type),
-             stat = "identity", color = "gray30", position = "dodge2", size = 0.1) +
-    facet_wrap(.~quarter, scale = "free_y") +
-    xlab("number of COVID-19 deaths") +
-    ylab("proportion of counties") +
-    ggtitle(paste0("Age ", i, ":\nDistribution of COVID-19 deaths by quarters (simulated and data)")) +
-    scale_fill_manual(values = c("gray", "deepskyblue")) +
-    theme_bw() +
-    theme(plot.title = element_text(size = 18, hjust = 0.5),
-          strip.text.x = element_text(size = 12, colour = "gray20"),
-          strip.background = element_rect(colour = NA, fill = "white"),
-          legend.title = element_blank(),
-          legend.text = element_text(size = 10),
-          axis.text.x = element_text(size = 10),
-          axis.text.y = element_text(size = 10),
-          axis.title.x = element_text(size = 14),
-          axis.title.y = element_text(size = 14),
-          legend.position = "bottom")
-  save_file <- paste0("inst/impute/results/distribution simulated and data hurdle (age ", i, ").tiff")
-  ggsave(save_file, device = "tiff", height = 6, width = 12)
-}
 
 
 
 # Calculate 95% credible intervals for the proportion of counties with 1-9 COVID-19 deaths by RUCC
 master_dt <- data.table(expand.grid(urban_rural_code = unique(mort2020$urban_rural_code),
+                                    age_group = unique(mort2020$age_group),
                                     y_cate = paste0(c(0:19, "20+")),
                                     quarter = c(1:4)))
 
-sum_dist <- mort2020[, list(N = .N), by = .(y_cate, urban_rural_code, quarter)]
-sum_dist[, pct := N / sum(N), by = .(urban_rural_code, quarter)]
-sum_dist[order(urban_rural_code, y_cate, quarter)]
+sum_dist <- mort2020[, list(N = .N), by = .(y_cate, urban_rural_code, age_group, quarter)]
+sum_dist[, pct := N / sum(N), by = .(urban_rural_code, age_group, quarter)]
+sum_dist[order(urban_rural_code, y_cate, age_group, quarter)]
 sum_dist <- sum_dist[!is.na(y_cate)]
 
-master_dt <- merge(master_dt, sum_dist, by = c("urban_rural_code", "y_cate", "quarter"), all.x = T)
-master_dt$pct[is.na(master_dt$pct)] <- 0
+master_dt <- merge(master_dt, sum_dist, by = c("urban_rural_code", "age_group", "y_cate", "quarter"), all.x = T)
 master_dt[, `:=` (type = "data", N = NULL)]
 
 covid19deaths_dist <- mclapply(c(1:nrow(ymis_draws)), function(x) {
@@ -510,31 +474,34 @@ covid19deaths_dist <- mclapply(c(1:nrow(ymis_draws)), function(x) {
   mort2020[, y_cate := ifelse(y_sim >= 20, "20+", y_cate)]
   mort2020$y_cate <- factor(mort2020$y_cate, levels = paste0(c(0:19, "20+")))
 
-  out <- mort2020[, list(N = .N), by = .(urban_rural_code, y_cate, quarter)]
-  out[, pct := N / sum(N), by = .(urban_rural_code, quarter)]
-  out[order(urban_rural_code, y_cate, quarter)]
+  out <- mort2020[, list(N = .N), by = .(urban_rural_code, age_group, y_cate, quarter)]
+  out[, pct := N / sum(N), by = .(urban_rural_code, age_group, quarter)]
+  out[order(urban_rural_code, age_group, y_cate, quarter)]
 }, mc.cores = 6)
 
 covid19deaths_dist <- rbindlist(covid19deaths_dist)
 covid19deaths_sum <- covid19deaths_dist[, list(pct = mean(pct),
                                                lb = quantile(pct, prob = 0.025),
                                                ub = quantile(pct, prob = 0.975)),
-                                        by = .(urban_rural_code, y_cate, quarter)]
+                                        by = .(urban_rural_code, age_group, y_cate, quarter)]
 covid19deaths_sum[, type := "simulated"]
 covid19deaths_sum <- rbindlist(list(covid19deaths_sum, master_dt), use.names = T, fill = T)
 covid19deaths_sum[, type := factor(type, levels = c("data", "simulated"))]
+covid19deaths_sum[, `:=` (quarter = paste0("Q", quarter),
+                          age_group = paste0("Age", age_group))]
 
 for (i in unique(mort2020$urban_rural_code)) {
-  ggplot(data = covid19deaths_sum[urban_rural_code == i]) +
+  tmp_n_cnty <- n_counties[urban_rural_code == i]$N
+  ggplot(data = covid19deaths_sum[urban_rural_code == i & y_cate != "0"]) +
     geom_bar(aes(x = y_cate, y = pct, fill = type),
-             stat = "identity", color = "gray30", position = "dodge2", size = 0.1) +
-    facet_wrap(.~quarter, scale = "free_y") +
-    xlab("number of COVID-19 deaths") +
-    ylab("proportion of counties") +
-    ggtitle(paste0(i, ":\nDistribution of COVID-19 deaths by quarters (simulated and data)")) +
+             stat = "identity", color = "gray30", position = "dodge2", size = 0.3) +
+    facet_grid(age_group ~ quarter, scale = "free") +
+    xlab("Number of COVID-19 Deaths") +
+    ylab("Proportion of Counties") +
+    ggtitle(paste0(i, ": number of counties = ", tmp_n_cnty," (positive only; simulated vs data)")) +
     scale_fill_manual(values = c("gray", "deepskyblue")) +
     theme_bw() +
-    theme(plot.title = element_text(size = 18, hjust = 0.5),
+    theme(plot.title = element_text(size = 20, hjust = 0.5),
           strip.text.x = element_text(size = 12, colour = "gray20"),
           strip.background = element_rect(colour = NA, fill = "white"),
           legend.title = element_blank(),
@@ -544,8 +511,8 @@ for (i in unique(mort2020$urban_rural_code)) {
           axis.title.x = element_text(size = 14),
           axis.title.y = element_text(size = 14),
           legend.position = "bottom")
-  save_file <- paste0("inst/impute/results/distribution simulated and data hurdle (", i, ").tiff")
-  ggsave(save_file, device = "tiff", height = 6, width = 12)
+  save_file <- paste0("inst/impute/results/distribution simulated and data hurdle (", i, ").png")
+  ggsave(save_file, device = "png", height = 10, width = 18)
 }
 
 
