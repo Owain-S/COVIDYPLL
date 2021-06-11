@@ -1,8 +1,8 @@
 #' std_pop_wgt
 "std_pop_wgt"
 
-#' le2020
-"le2020"
+#' life expectancy
+"le"
 
 #' covid19d_cty (2020 county-level covid-19 deaths)
 "covid19d_cty"
