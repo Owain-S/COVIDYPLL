@@ -136,37 +136,182 @@ get_county_pop_size <- function() {
   tab_long[, age_group := factor(age_group, levels = set_age_breaks()$labels)]
   keep_cols <- c("fips", "county_name", "state", "age_group", "pop_size")
   tab_long <- tab_long[, ..keep_cols][order(fips, age_group)]
+  tab_long$state[tab_long$fips %in% set_nyc_fips()] <- "NYC"
   return(tab_long)
 }
 
-#' @title Provisional COVID-19 death by quarter in 2020
+#' @import data.table
+#' @keywords internal
+standardize_mort_data <- function(dt, state_level = FALSE) {
+  dt <- data.table(dt)
+  colnames(dt) <- tolower(colnames(dt))
+  colnames(dt) <- gsub("\\.", "_", colnames(dt))
+
+  tmp_start <- unlist(lapply(strsplit(dt$start_date, "/"), function(x) {
+    paste0(x[3], "-", x[1], "-", x[2])
+  }))
+  tmp_end <- unlist(lapply(strsplit(dt$end_date, "/"), function(x) {
+    paste0(x[3], "-", x[1], "-", x[2])
+  }))
+
+  dt[, `:=` (start_date = as.Date(tmp_start),
+             end_date = as.Date(tmp_end))]
+
+  dt$age_group[dt$age_group == "85 years and over"] <- "85+"
+  dt[, age_group := gsub(" years", "", age_group)]
+  if (isTRUE(state_level)) {
+    dt[, age_group := factor(age_group, levels = c("All Ages", "0-17", set_age_breaks()$labels))]
+  } else {
+    dt[, age_group := factor(age_group, levels = set_age_breaks()$labels)]
+  }
+  dt <- dt[!is.na(age_group)]
+  return(dt)
+}
+
+#' @title Provisional county-level COVID-19 death by quarter in 2020
 #' @import data.table
 #' @export
-get_covid_death <- function() {
+get_covid_death_cty <- function() {
   tab <- read.csv("inst/extdata/AH_Provisional_COVID-19_Deaths_by_Quarter__County_and_Age_for_2020.csv")
-  tab <- data.table(tab)
-  colnames(tab) <- tolower(colnames(tab))
-  colnames(tab) <- gsub("\\.", "_", colnames(tab))
-
-  tmp_start <- unlist(lapply(strsplit(tab$start_date, "/"), function(x) {
-    paste0(x[3], "-", x[1], "-", x[2])
-  }))
-  tmp_end <- unlist(lapply(strsplit(tab$end_date, "/"), function(x) {
-    paste0(x[3], "-", x[1], "-", x[2])
-  }))
-
-  tab[, `:=` (start_date = as.Date(tmp_start),
-              end_date = as.Date(tmp_end))]
+  tab <- COVIDYPLL:::standardize_mort_data(tab)
   tab[, fips := copy(fips_code)]
-  tab$age_group[tab$age_group == "85 years and over"] <- "85+"
-  tab[, age_group := gsub(" years", "", age_group)]
-  tab[, age_group := factor(age_group, levels = set_age_breaks()$labels)]
-  tab <- tab[!is.na(age_group)]
-
+  tab$state[tab$fips %in% set_nyc_fips()] <- "NYC"
   keep_cols <- c("fips", "county", "state", "urban_rural_code", "year", "quarter",
                  "start_date", "end_date", "age_group", "covid_19_deaths", "total_deaths")
   tab <- tab[, ..keep_cols][order(fips, quarter, age_group)]
   return(tab)
 }
 
+#' @title Provisional national and state-level COVID-19 and total deaths
+#' @import data.table
+#' @export
+get_mort_nation_state <- function(select_sex = "All Sexes", select_year = 2020,
+                                  verbose = TRUE) {
+  tab <- read.csv("inst/extdata/Provisional_COVID-19_Deaths_by_Sex_and_Age.csv")
+  tab <- standardize_mort_data(tab, state_level = T)
+  tab <- tab[sex %in% select_sex & year %in% select_year & is.na(month)]
+  state_dt <- get_states()
+  state_dt <- rbindlist(list(state_dt, data.frame(state_name = "United States", state = "US")))
+  tab <- merge(tab, state_dt, by.x = "state", by.y = "state_name", all.x = T)
+  tab$state.y[tab$state == "New York City"] <- "NYC"
+  tab[, state := NULL]
+  setnames(tab, "state.y", "state")
+  tab <- tab[!is.na(state)] # removing Puerto Rico
 
+  if (isTRUE(verbose)) {
+    print(paste0("There are ",
+                 length(tab$covid_19_deaths[is.na(tab$covid_19_deaths) & !tab$age_group %in% c("0-17", "All Ages")]),
+                 " rows of missing values. The total number of rows is ",
+                 length(tab$covid_19_deaths[!tab$age_group %in% c("0-17", "All Ages")]),
+                 " in the dataset.")) # 30 missing values among the dataset of 371 rows
+  }
+
+  ## Fill out NA values
+  # assuming COVID-19 deaths in age 0-17 is ignorable (=0) if the value is NA
+  tab_agg <- tab[age_group == "All Ages"]
+  tab_agg <- tab_agg[, .(state, covid_19_deaths, total_deaths)]
+  setnames(tab_agg, c("covid_19_deaths", "total_deaths"), c("tot_covid19d", "tot_d"))
+  tab <- tab[age_group != "All Ages"]
+
+  tab[, `:=` (n_covid19d = sum(covid_19_deaths, na.rm = T),
+              n_death = sum(total_deaths, na.rm = T)),
+      by = .(state)] #  get the sum of covid_19_deaths from the data
+
+  tab <- merge(tab, tab_agg, by = c("state"), all.x = T)
+  tab[, `:=` (remain_covid19d = tot_covid19d - n_covid19d)]
+
+  tab[, `:=` (pr_covid19d = round(covid_19_deaths / n_covid19d, 3),
+              pr_deaths = round(total_deaths / n_death, 3))]
+
+  if (isTRUE(verbose)) {
+    print(paste0("Corrrelation of age distribution between COVID-19 deaths and total deaths is ",
+                 round(cor(tab$pr_covid19d[tab$age_group != "0-17"],
+                           tab$pr_deaths[tab$age_group != "0-17"],
+                           use = "complete.obs"), 3))) # the correlation is as high as 97.7%
+  }
+
+  # replace the missing values using the age distribution in total deaths
+  # because there are no missing values among total deaths and
+  # the correlation between covid19 deaths and total deaths is high
+  tab[, tmp_group := ifelse(is.na(pr_covid19d), 1, 0)]
+  tab[, renorm_pr_deaths := (tmp_group * pr_deaths) / sum((tmp_group * pr_deaths)),
+      by = .(state)] # re-normalize the proportion of total deaths among the data rows that had missing COVID-19 deaths
+  tab[, replace_missing_covid19d := round(renorm_pr_deaths * remain_covid19d)] # calculate the replaced values for the missing covid19 deaths using the remaining covid19 deaths times the renormalized proportion
+  tab[, covid_19_deaths := ifelse(is.na(covid_19_deaths), replace_missing_covid19d, covid_19_deaths)] # replace missing COVID-19 deaths
+
+  ## Drop All Ages and age group 0-17
+  tab <- tab[age_group != "0-17"]
+  tab$age_group <- droplevels(tab$age_group)
+
+  keep_cols <- c("state", "year", "sex", "age_group", "covid_19_deaths", "total_deaths")
+  tab <- tab[, ..keep_cols][order(state, age_group)]
+
+  ## Get population estimates by state
+  state_pop <- get_county_pop_size()
+  state_pop$state[state_pop$fips %in% set_nyc_fips()] <- "NYC"
+  state_pop <- state_pop[, list(pop_size = sum(pop_size)),
+                         by = .(state, age_group)]
+
+  tab <- merge(tab, state_pop, by = c("state", "age_group"), all.x = T)
+  tab <- tab[order(state, age_group)]
+  tab[, pr := (covid_19_deaths/pop_size)]
+  tab[, sd_covid19d := sqrt(pr * (1 - pr) / pop_size) * pop_size]
+
+  keep_cols <- c("state", "year", "sex", "age_group",
+                 "covid_19_deaths", "total_deaths", "sd_covid19d")
+  tab <- tab[, ..keep_cols][order(state, age_group)]
+
+  return(tab)
+}
+
+#' @title Postcensal population by age 2020
+#' @import data.table
+#' @export
+get_postcensal_pop <- function() {
+  tab <- read.csv("inst/extdata/nc-est2019-alldata-r-file22.csv") # this is 2020 postcensal population
+  tab <- data.table(tab)
+  colnames(tab) <- tolower(colnames(tab))
+  tab <- tab[month == 7 & (age > 17 & age < 900)] # using the population estimate in 7/1/2020
+  tab <- tab[, .(age, tot_pop)]
+
+  age_breaks <- set_age_breaks()
+  tab[, age_group := cut(age, breaks = age_breaks$breaks, labels = age_breaks$labels, right = F)]
+  tab <- tab[!is.na(age_group)]
+  tab <- tab[, list(tot_pop = sum(tot_pop)), by = .(age_group)]
+  return(tab)
+}
+
+#' Get provisional life expectancy estimates in 2020
+#' @import data.table
+#' @export
+calculate_provisional_le <- function() {
+  ## calculate based on the technical note: https://www.cdc.gov/nchs/data/vsrr/VSRR10-508.pdf
+  ## and here: https://www.statsdirect.com/help/survival_analysis/abridged_life_table.htm
+  ## and here: https://www.cdc.gov/nchs/data/nvsr/nvsr61/nvsr61_03.pdf
+  # mort2020 <- get_mort_nation_state()
+  data(mort2020)
+
+  age_breaks <- set_age_breaks()
+
+  us_mort <- mort2020[state == "US", .(age_group, total_deaths)] # total deaths data
+  us_pop <- get_postcensal_pop() # US population data
+
+  us_mort <- merge(us_mort, us_pop, by = "age_group")
+  us_mort[, nx := ifelse(is.infinite(diff(age_breaks$breaks)), 100 - 85, diff(age_breaks$breaks))]
+  us_mort[, Mx := (total_deaths / (0.5 * tot_pop))]
+  us_mort[, qx := (nx * Mx) / (1 + (1 - 0.5) * nx * Mx)] # assumed ax = 0.5
+  us_mort[, qx := ifelse(qx > 1, 1, qx)]
+  us_mort[, lx := 100000]
+  us_mort[, dx := lx * qx]
+  for (i in c(2:nrow(us_mort))) {
+    us_mort$lx[i] <- us_mort$lx[i - 1] - us_mort$dx[i - 1]
+    us_mort$dx[i] <- us_mort$lx[i] * us_mort$qx[i]
+  }
+  us_mort[, Lx := nx * (lx - dx) + 0.5 * nx * dx]
+  us_mort$Lx[us_mort$age_group == "85+"] <- us_mort$lx[us_mort$age_group == "85+"] / us_mort$Mx[us_mort$age_group == "85+"]
+  us_mort[, Tx := sum(Lx) - shift(cumsum(Lx), type = "lag")]
+  us_mort$Tx[1] <- sum(us_mort$Lx)
+  us_mort[, ex := Tx / lx]
+  us_mort[, avg_le2020 := copy(ex)]
+  return(us_mort)
+}

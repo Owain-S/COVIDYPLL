@@ -51,6 +51,25 @@ get_states <- function() {
   state_dt
 }
 
+#' @title Vector of NYC fips code (5 counties)
+#' @import data.table
+#' @export
+set_nyc_fips <- function() {
+  # information from https://simple.wikipedia.org/wiki/List_of_counties_in_New_York
+  # and https://guides.newman.baruch.cuny.edu/nyc_data
+  # counties include Bronx County, Kings County, New York County, Queens County, Richmond County
+  c(36005, 36047, 36061, 36081, 36085)
+}
 
-
+#' @title Calculate YPLL
+#' @import data.table
+#' @export
+calculate_ypll <- function(dt) {
+  if (!is.data.table(dt)) stop("This is not data.table")
+  calc_columns <- c("covid_19_deaths", "avg_le2020", "pop_size", "std_pop_wgt")
+  if (!all(calc_columns %in% colnames(sum_dt))) stop("check whether the columns has \'covid_19_deaths\', \'avg_le2020\', \'pop_size\', \'std_pop_wgt\'")
+  dt[, ypll := (((covid_19_deaths * avg_le2020) / pop_size) * 100000) * std_pop_wgt]
+  dt[pop_size == 0]$ypll <- 0
+  dt
+}
 
