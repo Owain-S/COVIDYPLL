@@ -4,25 +4,27 @@ library(COVIDYPLL)
 library(data.table)
 
 std_pop_wgt <- dl_us_standard_population()
-le2020 <- get_provisional_le()
+# le2020 <- get_provisional_le() #  data calculated based on https://www.cdc.gov/nchs/data/vsrr/VSRR10-508.pdf
+le2020 <- calculate_provisional_le() # calculated based on the entire 2020 deaths counts
 county_pop <- get_county_pop_size()
-mort2020 <- get_covid_death()
-impute_sample <- readRDS("inst/impute/bayes_impute.RDS")
-impute_sample_qr <- readRDS("inst/impute/bayes_impute_qr.RDS")
+covid19d_cty <- get_covid_death_cty()
+mort2020 <- get_mort_nation_state()
+impute_sample <- readRDS("inst/impute/bayes_impute_qr.RDS") # QR decomposition results
+impute_sample_agg <- readRDS("inst/impute/bayes_impute_agg.RDS") # aggregate results
 
 # FIPS 2270 (Wade Hampton Census Area, AK) and and 46113 (Shannon County, SD)
 # are not found in the census (county_pop) data
-mort2020 <- get_covid_death()
-mort2020[, `:=` (county = NULL, state = NULL)]
-mort2020 <- merge(mort2020, county_pop, by = c("fips", "age_group"), all.x = T)
+covid19d_cty[, `:=` (county = NULL, state = NULL)]
+covid19d_cty <- merge(covid19d_cty, county_pop, by = c("fips", "age_group"), all.x = T)
 # removing the two FIPS that had no population information
-mort2020 <- mort2020[!fips %in% c(2270, 46113)]
+covid19d_cty <- covid19d_cty[!fips %in% c(2270, 46113)]
 
 usethis::use_data(std_pop_wgt, overwrite = T)
 usethis::use_data(le2020, overwrite = T)
+usethis::use_data(covid19d_cty, overwrite = T)
 usethis::use_data(mort2020, overwrite = T)
 usethis::use_data(impute_sample, overwrite = T)
-usethis::use_data(impute_sample_qr, overwrite = T)
+usethis::use_data(impute_sample_agg, overwrite = T)
 
 devtools::document()
 package_loc <- devtools::build()

@@ -10,19 +10,19 @@ library(brms)
 library(ggpubr)
 
 # ### Using brms to get the stan code to base on
-# mort2020$state_num <- as.numeric(as.factor(mort2020$state))
-# mort2020$fips_num <- as.numeric(as.factor(mort2020$fips))
-# mort2020[, l_pop_size := log(pop_size + 1)]
-# mort2020 <- mort2020[!is.na(covid_19_deaths)]
+# covid19d_cty$state_num <- as.numeric(as.factor(covid19d_cty$state))
+# covid19d_cty$fips_num <- as.numeric(as.factor(covid19d_cty$fips))
+# covid19d_cty[, l_pop_size := log(pop_size + 1)]
+# covid19d_cty <- covid19d_cty[!is.na(covid_19_deaths)]
 #
 # data_ls <- list(
-#   y = mort2020$covid_19_death,
-#   q2 = 1 * (mort2020$quarter == 2), # quarters
-#   q3 = 1 * (mort2020$quarter == 3), # quarters
-#   q4 = 1 * (mort2020$quarter == 4), # quarters
-#   state = mort2020$state,
-#   county = mort2020$fips,
-#   l_pop_size = mort2020$l_pop_size
+#   y = covid19d_cty$covid_19_death,
+#   q2 = 1 * (covid19d_cty$quarter == 2), # quarters
+#   q3 = 1 * (covid19d_cty$quarter == 3), # quarters
+#   q4 = 1 * (covid19d_cty$quarter == 4), # quarters
+#   state = covid19d_cty$state,
+#   county = covid19d_cty$fips,
+#   l_pop_size = covid19d_cty$l_pop_size
 # )
 # b_model <- bf(y ~ 1 + q2 + q3 + q4 + l_pop_size + (1 | state/county),
 #               hu ~ 1 + q2 + q3 + q4 + (1 | state/county),
@@ -48,47 +48,46 @@ library(ggpubr)
 
 
 #### Create stan model
-mort2020$state_num <- as.numeric(as.factor(mort2020$state))
-mort2020$fips_num <- as.numeric(as.factor(mort2020$fips))
+covid19d_cty$state_num <- as.numeric(as.factor(covid19d_cty$state))
+covid19d_cty$fips_num <- as.numeric(as.factor(covid19d_cty$fips))
 
-mort2020$urban_rural_code <- factor(mort2020$urban_rural_code,
+covid19d_cty$urban_rural_code <- factor(covid19d_cty$urban_rural_code,
                                     levels = c("Noncore", "Medium metro", "Small metro",
                                                "Large fringe metro", "Micropolitan",
                                                "Large central metro"))
-mort2020$quarter <- factor(mort2020$quarter)
-mort2020[, l_pop_size := log(pop_size + 1)]
+covid19d_cty$quarter <- factor(covid19d_cty$quarter)
+covid19d_cty[, l_pop_size := log(pop_size + 1)]
 
-X <- model.matrix( ~ quarter * age_group + quarter * urban_rural_code +
-                     age_group * urban_rural_code + l_pop_size, data = mort2020)
-X_hu <- model.matrix( ~ quarter * age_group + urban_rural_code, data = mort2020)
+X <- model.matrix( ~ quarter * age_group + quarter * urban_rural_code + l_pop_size, data = covid19d_cty)
+X_hu <- model.matrix( ~ quarter * age_group + urban_rural_code, data = covid19d_cty)
 
 
-mort2020[, y := copy(covid_19_deaths)]
+covid19d_cty[, y := copy(covid_19_deaths)]
 
 data_ls <- list(
-  N = nrow(mort2020),
-  Y = ifelse(is.na(mort2020$y), Inf, mort2020$y),
-  Jmi = which(is.na(mort2020$y)),
-  Nmi = length(which(is.na(mort2020$y))),
+  N = nrow(covid19d_cty),
+  Y = ifelse(is.na(covid19d_cty$y), Inf, covid19d_cty$y),
+  Jmi = which(is.na(covid19d_cty$y)),
+  Nmi = length(which(is.na(covid19d_cty$y))),
   K = ncol(X),
   X = X,
-  Z_1_1 = rep(1, nrow(mort2020)),
-  Z_2_1 = rep(1, nrow(mort2020)),
+  Z_1_1 = rep(1, nrow(covid19d_cty)),
+  Z_2_1 = rep(1, nrow(covid19d_cty)),
   K_hu = ncol(X_hu),
   X_hu = X_hu,
-  Z_3_hu_1 = rep(1, nrow(mort2020)),
-  Z_4_hu_1 = rep(1, nrow(mort2020)),
-  J_1 = mort2020$state_num,
-  J_2 = mort2020$fips_num,
-  J_3 = mort2020$state_num,
-  J_4 = mort2020$fips_num,
-  N_1 = length(unique(mort2020$state_num)),
+  Z_3_hu_1 = rep(1, nrow(covid19d_cty)),
+  Z_4_hu_1 = rep(1, nrow(covid19d_cty)),
+  J_1 = covid19d_cty$state_num,
+  J_2 = covid19d_cty$fips_num,
+  J_3 = covid19d_cty$state_num,
+  J_4 = covid19d_cty$fips_num,
+  N_1 = length(unique(covid19d_cty$state_num)),
   M_1 = 1,
-  N_2 = length(unique(mort2020$fips_num)),
+  N_2 = length(unique(covid19d_cty$fips_num)),
   M_2 = 1,
-  N_3 = length(unique(mort2020$state_num)),
+  N_3 = length(unique(covid19d_cty$state_num)),
   M_3 = 1,
-  N_4 = length(unique(mort2020$fips_num)),
+  N_4 = length(unique(covid19d_cty$fips_num)),
   M_4 = 1
 )
 
@@ -96,15 +95,16 @@ begin_time <- Sys.time()
 fit_hurdle <- stan(
   file = "inst/impute/stan/impute_hurdle_qr.stan",  # Stan program
   data = data_ls,         # named list of data
-  chains = 1,             # number of Markov chains
-  warmup = 50,           # number of warmup iterations per chain
-  iter = 200,            # total number of iterations per chain
-  cores = 1,              # number of cores (could use one per chain)
+  chains = 3,             # number of Markov chains
+  warmup = 500,           # number of warmup iterations per chain
+  iter = 2000,            # total number of iterations per chain
+  cores = 3,              # number of cores (could use one per chain)
   refresh = 10,
-  pars = c("mu", "hu", "Ymi", "y_sim"), # "bQ", "shape", "b_hu"
+  pars = c("bQ", "shape", "b_hu", "Ymi", "y_sim"),
   seed = 20210519
 )
 print(Sys.time() - begin_time)
+
 
 saveRDS(fit_hurdle, "inst/impute/results/fit_hurdle_qr.RDS")
 
@@ -115,7 +115,7 @@ pars <- c("bQ", "shape", "b_hu")
 sum_estimates <- round(summary(fit_hurdle, pars = pars, probs = c(0.025, 0.975))$summary, 3)
 saveRDS(sum_estimates, "inst/impute/results/sum_estimates_hurdle_qr.RDS")
 
-traceplot(fit_hurdle, pars = c("mu", "hu", "shape"))
+traceplot(fit_hurdle, pars = pars)
 ggsave("inst/impute/results/traceplot of fixed effects_hurdle_qr.png", device = "png",
        height = 12, width = 14)
 
@@ -137,26 +137,26 @@ ymis_draws <- mclapply(ymis_draws, function(x) {
 }, mc.cores = 6)
 ymis_draws <- do.call(cbind, ymis_draws)
 
-ix_miss <- which(is.na(mort2020$covid_19_deaths))
+ix_miss <- which(is.na(covid19d_cty$covid_19_deaths))
 
 saveRDS(list(ix_miss = ix_miss,
              ymis_draws = ymis_draws), "inst/impute/bayes_impute_qr.RDS")
 
 # Calculate 95% credible intervals for the proportion of counties with 1-9 COVID-19 deaths
-data(mort2020)
-mort2020[, y := copy(covid_19_deaths)]
-mort2020[, suppress := ifelse(is.na(covid_19_deaths), "suppressed", "non-suppressed")]
-mort2020[, y_new := copy(y)]
+data(covid19d_cty)
+covid19d_cty[, y := copy(covid_19_deaths)]
+covid19d_cty[, suppress := ifelse(is.na(covid_19_deaths), "suppressed", "non-suppressed")]
+covid19d_cty[, y_new := copy(y)]
 
 covid19deaths_dist <- mclapply(c(1:nrow(ymis_draws)), function(x) {
   tmp_y <- ymis_draws[x, ]
-  mort2020$y_new[is.na(mort2020$covid_19_deaths)] <- tmp_y
+  covid19d_cty$y_new[is.na(covid19d_cty$covid_19_deaths)] <- tmp_y
 
-  mort2020[, y_cate := as.character(y_new)]
-  mort2020[, y_cate := ifelse(y_new >= 20, "20+", y_cate)]
-  mort2020$y_cate <- factor(mort2020$y_cate, levels = paste0(c(0:19, "20+")))
+  covid19d_cty[, y_cate := as.character(y_new)]
+  covid19d_cty[, y_cate := ifelse(y_new >= 20, "20+", y_cate)]
+  covid19d_cty$y_cate <- factor(covid19d_cty$y_cate, levels = paste0(c(0:19, "20+")))
 
-  out <- mort2020[, list(N = .N), by = .(y_cate, quarter)]
+  out <- covid19d_cty[, list(N = .N), by = .(y_cate, quarter)]
   out[, pct := N / sum(N), by = .(quarter)]
   out[, suppress := ifelse(y_cate %in% paste0(c(1:9)), "suppressed", "non-suppressed")]
   out[order(y_cate, quarter)]
@@ -217,13 +217,13 @@ ggsave("inst/impute/results/impute distribution_hurdle_qr.tiff", device = "tiff"
 # Calculate 95% credible intervals for the proportion of counties with 1-9 COVID-19 deaths
 covid19deaths_dist <- mclapply(c(1:nrow(ymis_draws)), function(x) {
   tmp_y <- ymis_draws[x, ]
-  mort2020$y_new[is.na(mort2020$covid_19_deaths)] <- tmp_y
+  covid19d_cty$y_new[is.na(covid19d_cty$covid_19_deaths)] <- tmp_y
 
-  mort2020[, y_cate := as.character(y_new)]
-  mort2020[, y_cate := ifelse(y_new >= 20, "20+", y_cate)]
-  mort2020$y_cate <- factor(mort2020$y_cate, levels = paste0(c(0:19, "20+")))
+  covid19d_cty[, y_cate := as.character(y_new)]
+  covid19d_cty[, y_cate := ifelse(y_new >= 20, "20+", y_cate)]
+  covid19d_cty$y_cate <- factor(covid19d_cty$y_cate, levels = paste0(c(0:19, "20+")))
 
-  out <- mort2020[, list(N = .N), by = .(y_cate, age_group, quarter)]
+  out <- covid19d_cty[, list(N = .N), by = .(y_cate, age_group, quarter)]
   out[, pct := N / sum(N), by = .(age_group, quarter)]
   out[, suppress := ifelse(y_cate %in% paste0(c(1:9)), "suppressed", "non-suppressed")]
   out[order(y_cate, age_group)]
@@ -267,13 +267,13 @@ ggsave("inst/impute/results/impute distribution_age_hurdle_qr.png",
 # Calculate 95% credible intervals for the proportion of counties with 1-9 COVID-19 deaths
 covid19deaths_dist <- mclapply(c(1:nrow(ymis_draws)), function(x) {
   tmp_y <- ymis_draws[x, ]
-  mort2020$y_new[is.na(mort2020$covid_19_deaths)] <- tmp_y
+  covid19d_cty$y_new[is.na(covid19d_cty$covid_19_deaths)] <- tmp_y
 
-  mort2020[, y_cate := as.character(y_new)]
-  mort2020[, y_cate := ifelse(y_new >= 20, "20+", y_cate)]
-  mort2020$y_cate <- factor(mort2020$y_cate, levels = paste0(c(0:19, "20+")))
+  covid19d_cty[, y_cate := as.character(y_new)]
+  covid19d_cty[, y_cate := ifelse(y_new >= 20, "20+", y_cate)]
+  covid19d_cty$y_cate <- factor(covid19d_cty$y_cate, levels = paste0(c(0:19, "20+")))
 
-  out <- mort2020[, list(N = .N), by = .(y_cate, urban_rural_code, age_group, quarter)]
+  out <- covid19d_cty[, list(N = .N), by = .(y_cate, urban_rural_code, age_group, quarter)]
   out[, pct := N / sum(N), by = .(urban_rural_code, age_group, quarter)]
   out[, suppress := ifelse(y_cate %in% paste0(c(1:9)), "suppressed", "non-suppressed")]
   out[order(y_cate, urban_rural_code)]
@@ -298,7 +298,7 @@ master_dt <- data.table(expand.grid(y_cate = unique(covid19deaths_sum$y_cate),
 covid19deaths_sum <- merge(master_dt, covid19deaths_sum,
                            by = c("y_cate", "urban_rural_code", "age_group", "quarter"),
                            all.x = T)
-n_counties <- unique(mort2020[, .(fips, urban_rural_code)])
+n_counties <- unique(covid19d_cty[, .(fips, urban_rural_code)])
 n_counties <- n_counties[, list(N = .N), by = .(urban_rural_code)]
 
 
@@ -355,15 +355,15 @@ ysim_draws <- do.call(cbind, ysim_draws)
 # Calculate 95% credible intervals for the proportion of counties with 1-9 COVID-19 deaths
 master_dt <- data.table(expand.grid(y_cate = paste0(c(0:19, "20+")),
                                     quarter = c(1:4),
-                                    age_group = unique(mort2020$age_group)))
+                                    age_group = unique(covid19d_cty$age_group)))
 
-mort2020[, suppress := ifelse(is.na(covid_19_deaths), "suppressed", "non-suppressed")]
-mort2020[, y_new := copy(y)]
-mort2020[, y_cate := as.character(y_new)]
-mort2020[, y_cate := ifelse(y_new >= 20, "20+", y_cate)]
-mort2020$y_cate <- factor(mort2020$y_cate, levels = paste0(c(0:19, "20+")))
+covid19d_cty[, suppress := ifelse(is.na(covid_19_deaths), "suppressed", "non-suppressed")]
+covid19d_cty[, y_new := copy(y)]
+covid19d_cty[, y_cate := as.character(y_new)]
+covid19d_cty[, y_cate := ifelse(y_new >= 20, "20+", y_cate)]
+covid19d_cty$y_cate <- factor(covid19d_cty$y_cate, levels = paste0(c(0:19, "20+")))
 
-sum_dist <- mort2020[, list(N = .N), by = .(y_cate, quarter, age_group)]
+sum_dist <- covid19d_cty[, list(N = .N), by = .(y_cate, quarter, age_group)]
 sum_dist[, pct := N / sum(N), by = .(age_group, quarter)]
 sum_dist[order(y_cate, age_group, quarter)]
 sum_dist <- sum_dist[!is.na(y_cate)]
@@ -374,13 +374,13 @@ master_dt[, `:=` (type = "data", N = NULL)]
 
 covid19deaths_dist <- mclapply(c(1:nrow(ymis_draws)), function(x) {
   tmp_y <- ysim_draws[x, ]
-  mort2020[, y_sim := tmp_y]
+  covid19d_cty[, y_sim := tmp_y]
 
-  mort2020[, y_cate := as.character(y_sim)]
-  mort2020[, y_cate := ifelse(y_sim >= 20, "20+", y_cate)]
-  mort2020$y_cate <- factor(mort2020$y_cate, levels = paste0(c(0:19, "20+")))
+  covid19d_cty[, y_cate := as.character(y_sim)]
+  covid19d_cty[, y_cate := ifelse(y_sim >= 20, "20+", y_cate)]
+  covid19d_cty$y_cate <- factor(covid19d_cty$y_cate, levels = paste0(c(0:19, "20+")))
 
-  out <- mort2020[, list(N = .N), by = .(y_cate, quarter, age_group)]
+  out <- covid19d_cty[, list(N = .N), by = .(y_cate, quarter, age_group)]
   out[, pct := N / sum(N), by = .(quarter, age_group)]
   out[order(y_cate, quarter, age_group)]
 }, mc.cores = 6)
@@ -449,12 +449,12 @@ ggsave(paste0("inst/impute/results/distribution simulated and data prop zeros_hu
 
 
 # Calculate 95% credible intervals for the proportion of counties with 1-9 COVID-19 deaths by RUCC
-master_dt <- data.table(expand.grid(urban_rural_code = unique(mort2020$urban_rural_code),
-                                    age_group = unique(mort2020$age_group),
+master_dt <- data.table(expand.grid(urban_rural_code = unique(covid19d_cty$urban_rural_code),
+                                    age_group = unique(covid19d_cty$age_group),
                                     y_cate = paste0(c(0:19, "20+")),
                                     quarter = c(1:4)))
 
-sum_dist <- mort2020[, list(N = .N), by = .(y_cate, urban_rural_code, age_group, quarter)]
+sum_dist <- covid19d_cty[, list(N = .N), by = .(y_cate, urban_rural_code, age_group, quarter)]
 sum_dist[, pct := N / sum(N), by = .(urban_rural_code, age_group, quarter)]
 sum_dist[order(urban_rural_code, y_cate, age_group, quarter)]
 sum_dist <- sum_dist[!is.na(y_cate)]
@@ -464,13 +464,13 @@ master_dt[, `:=` (type = "data", N = NULL)]
 
 covid19deaths_dist <- mclapply(c(1:nrow(ymis_draws)), function(x) {
   tmp_y <- ysim_draws[x, ]
-  mort2020[, y_sim := tmp_y]
+  covid19d_cty[, y_sim := tmp_y]
 
-  mort2020[, y_cate := as.character(y_sim)]
-  mort2020[, y_cate := ifelse(y_sim >= 20, "20+", y_cate)]
-  mort2020$y_cate <- factor(mort2020$y_cate, levels = paste0(c(0:19, "20+")))
+  covid19d_cty[, y_cate := as.character(y_sim)]
+  covid19d_cty[, y_cate := ifelse(y_sim >= 20, "20+", y_cate)]
+  covid19d_cty$y_cate <- factor(covid19d_cty$y_cate, levels = paste0(c(0:19, "20+")))
 
-  out <- mort2020[, list(N = .N), by = .(urban_rural_code, age_group, y_cate, quarter)]
+  out <- covid19d_cty[, list(N = .N), by = .(urban_rural_code, age_group, y_cate, quarter)]
   out[, pct := N / sum(N), by = .(urban_rural_code, age_group, quarter)]
   out[order(urban_rural_code, age_group, y_cate, quarter)]
 }, mc.cores = 6)
@@ -486,7 +486,7 @@ covid19deaths_sum[, type := factor(type, levels = c("data", "simulated"))]
 covid19deaths_sum[, `:=` (quarter = paste0("Q", quarter),
                           age_group = paste0("Age", age_group))]
 
-for (i in unique(mort2020$urban_rural_code)) {
+for (i in unique(covid19d_cty$urban_rural_code)) {
   tmp_n_cnty <- n_counties[urban_rural_code == i]$N
   ggplot(data = covid19deaths_sum[urban_rural_code == i & y_cate != "0"]) +
     geom_bar(aes(x = y_cate, y = pct, fill = type),
