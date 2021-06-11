@@ -3,7 +3,7 @@
 \docType{data}
 \name{impute_sample}
 \alias{impute_sample}
-\title{imputed data}
+\title{imputed data qr}
 \format{
 An object of class \code{list} of length 2.
 }
@@ -11,6 +11,6 @@ An object of class \code{list} of length 2.
 impute_sample
 }
 \description{
-imputed data
+imputed data qr
 }
 \keyword{datasets}

@@ -5,7 +5,7 @@
 \alias{le2020}
 \title{le2020}
 \format{
-An object of class \code{data.table} (inherits from \code{data.frame}) with 84 rows and 4 columns.
+An object of class \code{data.table} (inherits from \code{data.frame}) with 7 rows and 12 columns.
 }
 \usage{
 le2020
