@@ -13,22 +13,13 @@ data(list = dat_ls, package = "COVIDYPLL")
 ix_miss <- impute_sample_agg$ix_miss
 ymis <- impute_sample_agg$ymis_draws
 
-# calculate_ypll <- function(dt) {
-#   if (!is.data.table(dt)) stop("This is not data.table")
-#   calc_columns <- c("covid_19_deaths", "avg_le2020", "pop_size", "std_pop_wgt")
-#   if (!all(calc_columns %in% colnames(sum_dt))) stop("check whether the columns has \'covid_19_deaths\', \'avg_le2020\', \'pop_size\', \'std_pop_wgt\'")
-#   dt[, ypll := (((covid_19_deaths * avg_le2020) / pop_size) * 100000) * std_pop_wgt]
-#   dt[pop_size == 0]$ypll <- 0
-#   dt
-# }
-
 
 set.seed(20210610)
 
 ## YPLL1: ignore NAs
 sum_dt <- covid19d_cty[, list(covid_19_deaths = sum(covid_19_deaths, na.rm = T)),
                    by = .(fips, age_group, pop_size)]
-sum_dt <- merge(sum_dt, le2020[, .(age_group, avg_le2020)],
+sum_dt <- merge(sum_dt, le[, .(age_group, avg_le2020)],
                 by = c("age_group"), all.x = T)
 sum_dt <- merge(sum_dt, std_pop_wgt[, .(age_group, std_pop_wgt)],
                 by = c("age_group"), all.x = T)
@@ -44,7 +35,7 @@ ypll2_dt <- mclapply(c(1:nrow(ymis)), function(x) {
   covid19d_cty$covid_19_deaths[ix_miss] <- ymis[x, ]
   sum_dt <- covid19d_cty[, list(covid_19_deaths = sum(covid_19_deaths, na.rm = T)),
                      by = .(fips, age_group, pop_size)]
-  sum_dt <- merge(sum_dt, le2020[, .(age_group, avg_le2020)],
+  sum_dt <- merge(sum_dt, le[, .(age_group, avg_le2020)],
                   by = c("age_group"), all.x = T)
   sum_dt <- merge(sum_dt, std_pop_wgt[, .(age_group, std_pop_wgt)],
                   by = c("age_group"), all.x = T)
@@ -70,7 +61,7 @@ ypll3_dt <- mclapply(c(1:nrow(ymis)), function(x) {
   covid19d_cty$covid_19_deaths[ix_miss] <- sample(c(1:9), length(ix_miss), rep = T)
   sum_dt <- covid19d_cty[, list(covid_19_deaths = sum(covid_19_deaths, na.rm = T)),
                      by = .(fips, age_group, pop_size)]
-  sum_dt <- merge(sum_dt, le2020[, .(age_group, avg_le2020)],
+  sum_dt <- merge(sum_dt, le[, .(age_group, avg_le2020)],
                   by = c("age_group"), all.x = T)
   sum_dt <- merge(sum_dt, std_pop_wgt[, .(age_group, std_pop_wgt)],
                   by = c("age_group"), all.x = T)

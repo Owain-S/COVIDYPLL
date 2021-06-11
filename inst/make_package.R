@@ -4,8 +4,8 @@ library(COVIDYPLL)
 library(data.table)
 
 std_pop_wgt <- dl_us_standard_population()
-# le2020 <- get_provisional_le() #  data calculated based on https://www.cdc.gov/nchs/data/vsrr/VSRR10-508.pdf
-le2020 <- calculate_provisional_le() # calculated based on the entire 2020 deaths counts
+# le <- get_provisional_le() #  data calculated based on https://www.cdc.gov/nchs/data/vsrr/VSRR10-508.pdf
+le <- calculate_provisional_le() # life expectancy in 2018 and 2020
 county_pop <- get_county_pop_size()
 covid19d_cty <- get_covid_death_cty()
 mort2020 <- get_mort_nation_state()
@@ -20,7 +20,7 @@ covid19d_cty <- merge(covid19d_cty, county_pop, by = c("fips", "age_group"), all
 covid19d_cty <- covid19d_cty[!fips %in% c(2270, 46113)]
 
 usethis::use_data(std_pop_wgt, overwrite = T)
-usethis::use_data(le2020, overwrite = T)
+usethis::use_data(le, overwrite = T)
 usethis::use_data(covid19d_cty, overwrite = T)
 usethis::use_data(mort2020, overwrite = T)
 usethis::use_data(impute_sample, overwrite = T)
