@@ -67,8 +67,10 @@ data_ls <- list(
   M_4 = 1,
   # State-level COVID-19 deaths
   state_d = mort2020$covid_19_deaths,
-  # sd_state_d = ifelse(mort2020$covid_19_deaths < 10, 10, mort2020$covid_19_deaths * 0.2),
-  sd_state_d = ifelse(mort2020$covid_19_deaths < 1, 1, mort2020$sd_covid19d),
+  # sd_state_d = ifelse(mort2020$covid_19_deaths < 10, 10, mort2020$covid_19_deaths * 0.2), # _agg
+  sd_state_d = ifelse(mort2020$covid_19_deaths < 5, 1, mort2020$covid_19_deaths * 0.2), # _agg2
+  # sd_state_d = ifelse(mort2020$covid_19_deaths < 10, 1, mort2020$covid_19_deaths * 0.1), # _agg3
+  # sd_state_d = ifelse(mort2020$covid_19_deaths < 1, 1, mort2020$sd_covid19d * 4), # _agg4
   n_state_d = nrow(mort2020),
   n_gp = max(mort2020$gp_ix),
   # group indices

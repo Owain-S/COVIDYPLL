@@ -67,7 +67,7 @@ set_nyc_fips <- function() {
 calculate_ypll <- function(dt) {
   if (!is.data.table(dt)) stop("This is not data.table")
   calc_columns <- c("covid_19_deaths", "avg_le2020", "pop_size", "std_pop_wgt")
-  if (!all(calc_columns %in% colnames(sum_dt))) stop("check whether the columns has \'covid_19_deaths\', \'avg_le2020\', \'pop_size\', \'std_pop_wgt\'")
+  if (!all(calc_columns %in% colnames(dt))) stop("check whether the columns has \'covid_19_deaths\', \'avg_le2020\', \'pop_size\', \'std_pop_wgt\'")
   dt[, ypll := (((covid_19_deaths * avg_le2020) / pop_size) * 100000) * std_pop_wgt]
   dt[pop_size == 0]$ypll <- 0
   dt

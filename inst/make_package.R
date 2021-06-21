@@ -9,8 +9,7 @@ le <- calculate_provisional_le() # life expectancy in 2018 and 2020
 county_pop <- get_county_pop_size()
 covid19d_cty <- get_covid_death_cty()
 mort2020 <- get_mort_nation_state()
-impute_sample <- readRDS("inst/impute/bayes_impute_qr.RDS") # QR decomposition results
-impute_sample_agg <- readRDS("inst/impute/bayes_impute_agg.RDS") # aggregate results
+impute_sample <- readRDS("inst/impute/bayes_impute_agg2.RDS") # aggregate results
 
 # FIPS 2270 (Wade Hampton Census Area, AK) and and 46113 (Shannon County, SD)
 # are not found in the census (county_pop) data
@@ -24,7 +23,6 @@ usethis::use_data(le, overwrite = T)
 usethis::use_data(covid19d_cty, overwrite = T)
 usethis::use_data(mort2020, overwrite = T)
 usethis::use_data(impute_sample, overwrite = T)
-usethis::use_data(impute_sample_agg, overwrite = T)
 
 devtools::document()
 package_loc <- devtools::build()

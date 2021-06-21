@@ -1,0 +1,119 @@
+rm(list = ls())
+
+library(COVIDYPLL)
+library(data.table)
+library(rstan)
+library(MASS)
+
+# Sys.setenv("resnum" = 1)
+resnum <- as.numeric(Sys.getenv("resnum"))
+
+options(mc.cores = parallel::detectCores())
+
+#### Create stan model
+covid19d_cty$state_num <- as.numeric(as.factor(covid19d_cty$state))
+covid19d_cty$fips_num <- as.numeric(as.factor(covid19d_cty$fips))
+covid19d_cty[, row_ix := c(1:.N)]
+
+state_num <- unique(covid19d_cty[, .(state, state_num)])
+
+covid19d_cty$urban_rural_code <- factor(covid19d_cty$urban_rural_code,
+                                    levels = c("Noncore", "Medium metro", "Small metro",
+                                               "Large fringe metro", "Micropolitan",
+                                               "Large central metro"))
+covid19d_cty$quarter <- factor(covid19d_cty$quarter)
+covid19d_cty[, l_pop_size := log(pop_size + 1)]
+covid19d_cty[, age_num := as.numeric(age_group)]
+
+X <- model.matrix( ~ quarter * age_group + quarter * urban_rural_code + l_pop_size, data = covid19d_cty)
+X_hu <- model.matrix( ~ quarter * age_group + urban_rural_code, data = covid19d_cty)
+
+covid19d_cty[, y := copy(covid_19_deaths)]
+
+## Get state covid-19 deaths counts by age group
+us_mort2020 <- mort2020[state == "US", .(age_group, covid_19_deaths)]
+mort2020 <- mort2020[state != "US", .(state, age_group, covid_19_deaths, sd_covid19d)]
+mort2020 <- merge(mort2020, state_num, by = "state", all.x = T)
+mort2020[, age_num := as.numeric(age_group)]
+mort2020[, gp_ix := c(1:.N)]
+covid19d_cty <- merge(covid19d_cty, mort2020[, .(state, age_group, gp_ix)],
+                      by = c("state", "age_group"), all.x = T)
+covid19d_cty <- covid19d_cty[order(row_ix)]
+
+if (resnum == 1) {
+  sd_vec <- ifelse(mort2020$covid_19_deaths < 10, 10, mort2020$covid_19_deaths * 0.2)
+  iters <- 4000
+  warmup <- 500
+}
+if (resnum == 2) {
+  sd_vec <- ifelse(mort2020$covid_19_deaths < 5, 1, mort2020$covid_19_deaths * 0.2)
+  iters <- 3000
+  warmup <- 500
+}
+if (resnum == 3) {
+  sd_vec <- ifelse(mort2020$covid_19_deaths < 10, 1, mort2020$covid_19_deaths * 0.1)
+  iters <- 7000
+  warmup <- 1000
+}
+if (resnum == 4) {
+  sd_vec <- ifelse(mort2020$covid_19_deaths < 1, 1, mort2020$sd_covid19d * 3)
+  iters <- 7000
+  warmup <- 1000
+}
+if (resnum == 5) {
+  sd_vec <- ifelse(mort2020$covid_19_deaths < 1, 1, mort2020$sd_covid19d * 2)
+  iters <- 8000
+  warmup <- 1000
+}
+
+
+data_ls <- list(
+  N = nrow(covid19d_cty),
+  Y = ifelse(is.na(covid19d_cty$y), Inf, covid19d_cty$y),
+  Jmi = which(is.na(covid19d_cty$y)),
+  Nmi = length(which(is.na(covid19d_cty$y))),
+  K = ncol(X),
+  X = X,
+  Z_1_1 = rep(1, nrow(covid19d_cty)),
+  Z_2_1 = rep(1, nrow(covid19d_cty)),
+  K_hu = ncol(X_hu),
+  X_hu = X_hu,
+  Z_3_hu_1 = rep(1, nrow(covid19d_cty)),
+  Z_4_hu_1 = rep(1, nrow(covid19d_cty)),
+  J_1 = covid19d_cty$state_num,
+  J_2 = covid19d_cty$fips_num,
+  J_3 = covid19d_cty$state_num,
+  J_4 = covid19d_cty$fips_num,
+  N_1 = length(unique(covid19d_cty$state_num)),
+  M_1 = 1,
+  N_2 = length(unique(covid19d_cty$fips_num)),
+  M_2 = 1,
+  N_3 = length(unique(covid19d_cty$state_num)),
+  M_3 = 1,
+  N_4 = length(unique(covid19d_cty$fips_num)),
+  M_4 = 1,
+  # State-level COVID-19 deaths
+  state_d = mort2020$covid_19_deaths,
+  sd_state_d = sd_vec,
+  n_state_d = nrow(mort2020),
+  n_gp = max(mort2020$gp_ix),
+  # group indices
+  gp_ix = covid19d_cty$gp_ix
+)
+
+begin_time <- Sys.time()
+fit_hurdle <- stan(
+  file = "stan/impute_hurdle_agg.stan",  # Stan program
+  data = data_ls,         # named list of data
+  chains = 3,             # number of Markov chains
+  warmup = warmup,           # number of warmup iterations per chain
+  iter = iters,            # total number of iterations per chain
+  cores = 3,              # number of cores (could use one per chain)
+  refresh = 10,
+  pars = c("bQ", "shape", "b_hu", "Ymi", "y_sim"),
+  seed = 20210519
+)
+print(Sys.time() - begin_time)
+
+saveRDS(fit_hurdle, paste0("results/fit_hurdle_agg", resnum, ".RDS"))
+
