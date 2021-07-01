@@ -297,7 +297,7 @@ calculate_provisional_le <- function() {
 
   us_mort <- merge(us_mort, us_pop, by = "age_group")
   us_mort[, nx := ifelse(is.infinite(diff(age_breaks$breaks)), 100 - 85, diff(age_breaks$breaks))]
-  us_mort[, Mx := (total_deaths / (0.5 * tot_pop))]
+  us_mort[, Mx := (total_deaths / tot_pop)]
   us_mort[, qx := (nx * Mx) / (1 + (1 - 0.5) * nx * Mx)] # assumed ax = 0.5
   us_mort[, qx := ifelse(qx > 1, 1, qx)]
   us_mort[, lx := 100000]
@@ -340,12 +340,25 @@ calculate_provisional_le <- function() {
                      Lx = max_Tx - min_Tx,
                      lx = max_lx)]
   sublft2018[, `:=` (qx = dx / lx,
-                     Tx = sum(Lx) - shift(cumsum(Lx), type = "lag"))]
-  sublft2018$Tx[1] <- sum(sublft2018$Lx)
+                     Tx = max_Tx)]
+  # sublft2018$Tx[1] <- sum(sublft2018$Lx)
   sublft2018[, avg_le2018 := Tx / lx]
 
   us_mort <- merge(us_mort, sublft2018[, .(age_group, avg_le2018)],
                    by = "age_group", all.x = T)
 
   return(us_mort)
+}
+
+#' Get County-Level Percent Uninsured in 2019 (SAHIE estimates)
+#' @import data.table
+#' @export
+get_uninsure_pop <- function() {
+  tab <- read.csv("inst/extdata/SAHIE_24JUN21_13_37_29_21.csv")
+  keep_cols <- c("fips", "pct_uninsure")
+  colnames(tab)[colnames(tab) %in% c("ID", "Uninsured...")] <- keep_cols
+  tab <- data.table(tab)
+  tab <- tab[, ..keep_cols]
+  tab[, (keep_cols) := lapply(.SD, as.numeric), .SDcols = keep_cols]
+  return(tab)
 }

@@ -6,7 +6,7 @@ library(data.table)
 library(parallel)
 library(openxlsx)
 
-i <- 3
+i <- 2
 
 temp <- readRDS(paste0("inst/impute/bayes_impute_agg", i,".RDS"))
 

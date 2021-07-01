@@ -14,7 +14,8 @@
 
 * Monthly Postcensal Resident Population 7/1/2020 - 12/1/2020: Data from https://www.census.gov/data/tables/time-series/demo/popest/2010s-national-detail.html, accessed on June 9, 2021
 
-
+* Uninsured Population by County 2019
+https://www.census.gov/data-tools/demo/sahie/#/, accessed on June 29, 2021
 
 
 

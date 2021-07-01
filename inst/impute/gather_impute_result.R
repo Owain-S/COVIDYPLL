@@ -9,9 +9,31 @@ library(tidyverse)
 library(brms)
 library(ggpubr)
 
-i <- 1
+i <- 2 # there are models 1, 2, 3 (4 and 5 are deleted)
+
+if (i %in% c(1:2)) {
+  warmup <- 500 + 1
+}
+
+if (i %in% c(3:5)) {
+  warmup <- 1000 + 1
+}
 
 fit_hurdle <- readRDS(paste0("inst/impute/results/fit_hurdle_agg", i,".RDS"))
+
+g_stan_dig <- stan_diag(fit_hurdle)
+ggarrange(g_stan_dig[[1]], g_stan_dig[[2]], g_stan_dig[[3]], nrow = 3)
+ggsave(paste0("inst/impute/results/stan_diag", i,".png"),
+       device = "png", height = 10, width = 10)
+
+sampler_params <- get_sampler_params(fit_hurdle, inc_warmup = FALSE)
+sampler_params_chain1 <- sampler_params[[1]]
+colnames(sampler_params_chain1)
+mean_accept_stat_by_chain <- sapply(sampler_params, function(x) mean(x[, "accept_stat__"]))
+print(mean_accept_stat_by_chain)
+max_treedepth_by_chain <- sapply(sampler_params, function(x) max(x[, "treedepth__"]))
+print(max_treedepth_by_chain)
+
 
 pars <- c("bQ", "shape", "b_hu")
 sum_estimates <- round(summary(fit_hurdle, pars = pars, probs = c(0.025, 0.975))$summary, 3)
@@ -25,9 +47,9 @@ library(parallel)
 
 ix_ymis <- grep("Ymi", names(fit_hurdle@sim$samples[[1]]))
 ymis_draws <- mclapply(ix_ymis, function(x) {
-  y <- c(fit_hurdle@sim$samples[[1]][[x]][501:fit_hurdle@sim$iter],
-         fit_hurdle@sim$samples[[2]][[x]][501:fit_hurdle@sim$iter],
-         fit_hurdle@sim$samples[[3]][[x]][501:fit_hurdle@sim$iter])
+  y <- c(fit_hurdle@sim$samples[[1]][[x]][warmup:fit_hurdle@sim$iter],
+         fit_hurdle@sim$samples[[2]][[x]][warmup:fit_hurdle@sim$iter],
+         fit_hurdle@sim$samples[[3]][[x]][warmup:fit_hurdle@sim$iter])
   round(y)
 }, mc.cores = 6)
 
@@ -240,9 +262,9 @@ for (x in rucc_ls) {
 # posterior predictive check
 ix_ysim <- grep("y_sim", names(fit_hurdle@sim$samples[[1]]))
 ysim_draws <- mclapply(ix_ysim, function(x) {
-  y <- c(fit_hurdle@sim$samples[[1]][[x]][501:fit_hurdle@sim$iter],
-         fit_hurdle@sim$samples[[2]][[x]][501:fit_hurdle@sim$iter],
-         fit_hurdle@sim$samples[[3]][[x]][501:fit_hurdle@sim$iter])
+  y <- c(fit_hurdle@sim$samples[[1]][[x]][warmup:fit_hurdle@sim$iter],
+         fit_hurdle@sim$samples[[2]][[x]][warmup:fit_hurdle@sim$iter],
+         fit_hurdle@sim$samples[[3]][[x]][warmup:fit_hurdle@sim$iter])
   round(y)
 }, mc.cores = 6)
 
