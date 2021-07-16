@@ -12,3 +12,6 @@
 
 #' imputed data agg
 "impute_sample"
+
+#' policy
+"policy"
