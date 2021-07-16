@@ -23,11 +23,30 @@ covid19d_cty <- merge(covid19d_cty, uninsure, by = c("fips"), all.x = T)
 covid19d_cty <- covid19d_cty[order(row_ix)]
 covid19d_cty[, row_ix := NULL]
 
+# Clean policy data
+policy <- readRDS("/Users/zoekao/Documents/CDC COVID/YPLLproj/Data/policy_dt.RDS")
+keep_col <- c("fips", "quarter",
+              "mask_acc1", "sah_acc1", "GB_acc1",
+              "svi_overall", "svi_ses", "svi_household", "svi_minority", "svi_housing",
+              # "ep_pov", "ep_unemp", "ep_pci", "ep_nohsdp", "ep_age65", "ep_age17", "ep_disabl",
+              # "ep_sngpnt", "ep_minrty", "ep_limeng", "ep_munit", "ep_mobile", "ep_crowd", "ep_noveh",
+              # "ep_groupq",
+              "svi_overall_ter", "svi_ses_ter", "svi_household_ter", "svi_minority_ter", "svi_housing_ter")
+policy <- policy[, ..keep_col]
+setnames(policy, c("mask_acc1", "sah_acc1", "GB_acc1",
+                   "svi_overall", "svi_ses", "svi_household", "svi_minority", "svi_housing",
+                   "svi_overall_ter", "svi_ses_ter", "svi_household_ter", "svi_minority_ter", "svi_housing_ter"),
+         c("mask_acc", "sah_acc", "GB_acc",
+           "svi_num", paste0("theme", c(1:4), "_num"),
+           "svi_cate", paste0("theme", c(1:4), "_cate")))
+
+
 usethis::use_data(std_pop_wgt, overwrite = T)
 usethis::use_data(le, overwrite = T)
 usethis::use_data(covid19d_cty, overwrite = T)
 usethis::use_data(mort2020, overwrite = T)
 usethis::use_data(impute_sample, overwrite = T)
+usethis::use_data(policy, overwrite = T)
 
 devtools::document()
 package_loc <- devtools::build()
