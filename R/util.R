@@ -68,10 +68,17 @@ calculate_ypll <- function(dt) {
   if (!is.data.table(dt)) stop("This is not data.table")
   calc_columns <- c("covid_19_deaths", "avg_le2020", "pop_size", "std_pop_wgt")
   if (!all(calc_columns %in% colnames(dt))) stop("check whether the columns has \'covid_19_deaths\', \'avg_le2020\', \'pop_size\', \'std_pop_wgt\'")
-  dt[, `:=` (tot_ypll = covid_19_deaths * avg_le2020,
-             ypll = (((covid_19_deaths * avg_le2020) / pop_size) * 100000) * std_pop_wgt)]
+  dt[, `:=` (covid19_death_rate = (covid_19_deaths / pop_size) * 100000,
+             covid19_death_rate_age_adjusted = (covid_19_deaths / pop_size) * 100000 * std_pop_wgt, # age_adjusted death rate https://www.cdc.gov/nchs/data/statnt/statnt06rv.pdf
+             tot_ypll = covid_19_deaths * avg_le2020,
+             ypll_rate = ((covid_19_deaths / pop_size) * 100000) * avg_le2020,
+             ypll_rate_age_adjusted = ((covid_19_deaths / pop_size) * 100000) * avg_le2020 * std_pop_wgt)]
+
+  dt[pop_size == 0]$covid19_death_rate <- 0
+  dt[pop_size == 0]$covid19_death_rate_age_adjusted <- 0
   dt[pop_size == 0]$tot_ypll <- 0
-  dt[pop_size == 0]$ypll <- 0
+  dt[pop_size == 0]$ypll_rate <- 0
+  dt[pop_size == 0]$ypll_rate_age_adjusted <- 0
   dt
 }
 
