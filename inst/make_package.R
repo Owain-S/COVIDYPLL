@@ -36,7 +36,7 @@ policy <- policy[, ..keep_col]
 setnames(policy, c("mask_acc1", "sah_acc1", "GB_acc1",
                    "svi_overall", "svi_ses", "svi_household", "svi_minority", "svi_housing",
                    "svi_overall_ter", "svi_ses_ter", "svi_household_ter", "svi_minority_ter", "svi_housing_ter"),
-         c("mask_acc", "sah_acc", "GB_acc",
+         c("Mask_acc", "SAH_acc", "GB_acc",
            "svi_num", paste0("theme", c(1:4), "_num"),
            "svi_cate", paste0("theme", c(1:4), "_cate")))
 
