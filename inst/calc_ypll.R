@@ -69,14 +69,27 @@ sum_dt <- sum_dt[, list(tot_covid_d = mean(tot_covid_d),
                  by = .(fips)]
 
 sum_dt <- merge(county_state, sum_dt, by = c("fips"))
-sum_dt[, `Age-adjusted\nYPLL Rate` := cut(ypll_rate_age_adjusted, breaks = c(-1, 250, 500, 800, 1000, 2000, 10000),
-                          labels = c("0-250", "250-500", "500-800", "800-1000", "1000-2000", ">2000"))]
-sum_dt[, `COVID-19 Deaths` := cut(tot_covid_d,
-                                  breaks = c(-Inf, 10, 50, 100, 500, 1000, Inf),
-                                  labels = c("0-10", "10-50", "50-100", "100-500", "500-1000", ">1000"))]
-sum_dt[, `Age-adjusted\nCOVID-19 Death Rate` := cut(covid19_death_rate_age_adjusted,
-                                  breaks = c(-Inf, 20, 30, 50, 100, 150, Inf),
-                                  labels = c("0-20", "20-30", "30-50", "50-100", "100-150", ">150"))]
+
+tmp_brk <- round(quantile(sum_dt$ypll_rate_age_adjusted, prob = c(0.2, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95)))
+sum_dt[, `Age-adjusted YPLL Rate\nPer 100,000 People` := cut(ypll_rate_age_adjusted, breaks = c(-Inf, tmp_brk, Inf),
+                                          labels = paste0(paste0(c(20, 40, 50, 60, 70, 80, 90, 95, ">95"),
+                                                                 "-th percentile"), ": ",
+                                                          c("0-320", "320-474", "474-547", "547-628", "628-730", "730-883", "883-1172", "1172-1503", ">=1503")))]
+
+
+tmp_brk <- round(quantile(sum_dt$tot_covid_d, prob = c(0.2, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95)))
+sum_dt[, `COVID-19 Deaths` := cut(tot_covid_d, breaks = c(-Inf, tmp_brk, Inf),
+                                  labels = paste0(paste0(c(20, 40, 50, 60, 70, 80, 90, 95, ">95"),
+                                                         "-th percentile"), ": ",
+                                                  c("0-15", "15-30", "30-40", "40-54", "54-71", "71-108", "108-220", "220-479", ">=479")))]
+
+tmp_brk <- round(quantile(sum_dt$covid19_death_rate_age_adjusted,
+                          prob = c(0.2, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95)))
+sum_dt[, `Age-adjusted COVID-19 Death Rate\nPer 100,000 People` := cut(covid19_death_rate_age_adjusted,
+                                  breaks = c(-Inf, tmp_brk, Inf),
+                                  labels = paste0(paste0(c(20, 40, 50, 60, 70, 80, 90, 95, ">95"),
+                                                         "-th percentile"), ": ",
+                                                  c("0-23", "23-33", "33-37", "37-42", "42-48", "48-56", "56-74", "74-91", ">=91")))]
 
 
 ## Code from here: https://mathewkiang.com/2017/01/16/using-histogram-legend-choropleths/
@@ -144,10 +157,11 @@ usstates_df <- tidy(usstates, region = "GEOID")
 
 ### YPLL
 map_ypll <- ggplot(data = sum_dt) +
-  geom_map(aes(map_id = fips, fill = `Age-adjusted\nYPLL Rate`),
-           map = uscounties_df, color = "gray80", size = 0.1)  +
+  geom_map(aes(map_id = fips, fill = `Age-adjusted YPLL Rate\nPer 100,000 People`),
+           map = uscounties_df, color = "gray80", size = 0.05)  +
   expand_limits(x = uscounties_df$long, y = uscounties_df$lat) +
-  scale_fill_viridis(discrete = TRUE, direction = -1, alpha = 0.9, option = "cividis") +
+  scale_fill_viridis(discrete = TRUE, direction = -1, alpha = 0.8, option = "magma") +
+  # scale_fill_brewer(palette = "RdBu", direction = -1) + #, alpha = 0.8) +
   scale_x_continuous(expand = c(0, 0)) +
   scale_y_continuous(expand = c(0, 0)) +
   geom_path(data = usstates_df, aes(long, lat, group = group),
@@ -171,9 +185,9 @@ ggsave(map_ypll, file = 'inst/ypll map.tiff', device = "tiff", width = 10, heigh
 
 map_death <- ggplot(data = sum_dt) +
   geom_map(aes(map_id = fips, fill = `COVID-19 Deaths`),
-           map = uscounties_df, color = "gray80", size = 0.1)  +
+           map = uscounties_df, color = "gray80", size = 0.05)  +
   expand_limits(x = uscounties_df$long, y = uscounties_df$lat) +
-  scale_fill_viridis(discrete = TRUE, direction = -1, alpha = 0.9, option = "cividis") +
+  scale_fill_viridis(discrete = TRUE, direction = -1, alpha = 0.8, option = "magma") +
   scale_x_continuous(expand = c(0, 0)) +
   scale_y_continuous(expand = c(0, 0)) +
   geom_path(data = usstates_df, aes(long, lat, group = group),
@@ -188,17 +202,17 @@ map_death <- ggplot(data = sum_dt) +
         axis.title.x = element_blank(),
         axis.title.y = element_blank(),
         legend.position = "right") +
-  labs(title = "COVID-19 Deaths in 2020",
+  labs(title = "Total COVID-19 Deaths in 2020",
        caption = paste0('Source: https://github.com/syzoekao/COVIDYPLL'))
 
 ggsave(map_death, file = 'inst/death map.tiff', device = "tiff", width = 10, height = 6)
 
 
 map_death_rate <- ggplot(data = sum_dt) +
-  geom_map(aes(map_id = fips, fill = `Age-adjusted\nCOVID-19 Death Rate`),
-           map = uscounties_df, color = "gray80", size = 0.1)  +
+  geom_map(aes(map_id = fips, fill = `Age-adjusted COVID-19 Death Rate\nPer 100,000 People`),
+           map = uscounties_df, color = "gray80", size = 0.05)  +
   expand_limits(x = uscounties_df$long, y = uscounties_df$lat) +
-  scale_fill_viridis(discrete = TRUE, direction = -1, alpha = 0.9, option = "cividis") +
+  scale_fill_viridis(discrete = TRUE, direction = -1, alpha = 0.8, option = "magma") +
   scale_x_continuous(expand = c(0, 0)) +
   scale_y_continuous(expand = c(0, 0)) +
   geom_path(data = usstates_df, aes(long, lat, group = group),
@@ -222,9 +236,9 @@ ggsave(map_death_rate, file = 'inst/death rate map.tiff', device = "tiff", width
 
 map_rucc <- ggplot(data = sum_dt) +
   geom_map(aes(map_id = fips, fill = urban_rural_code),
-           map = uscounties_df, color = "gray80", size = 0.1)  +
+           map = uscounties_df, color = "gray80", size = 0.05)  +
   expand_limits(x = uscounties_df$long, y = uscounties_df$lat) +
-  scale_fill_viridis(discrete = TRUE, direction = -1, alpha = 0.9, option = "cividis") +
+  scale_fill_viridis(discrete = TRUE, direction = -1, alpha = 0.8, option = "magma") +
   scale_x_continuous(expand = c(0, 0)) +
   scale_y_continuous(expand = c(0, 0)) +
   geom_path(data = usstates_df, aes(long, lat, group = group),
