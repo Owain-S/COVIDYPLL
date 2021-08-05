@@ -52,12 +52,14 @@ sum_dt <- mclapply(c(1:dim(ymis)[1]), function(x) {
                           std_pop_wgt = mean(std_pop_wgt)),
                    by = c("fips", "age_group")]
 
-  agg_dt <- calculate_ypll(tmp_dt)
+  # agg_dt <- calculate_ypll(tmp_dt)
+  #
+  # agg_dt <- agg_dt[, list(tot_covid_d = sum(covid_19_deaths),
+  #                         covid19_death_rate_age_adjusted = sum(covid19_death_rate_age_adjusted),
+  #                         ypll_rate_age_adjusted = sum(ypll_rate_age_adjusted)),
+  #                  by = .(fips)]
 
-  agg_dt <- agg_dt[, list(tot_covid_d = sum(covid_19_deaths),
-                          covid19_death_rate_age_adjusted = sum(covid19_death_rate_age_adjusted),
-                          ypll_rate_age_adjusted = sum(ypll_rate_age_adjusted)),
-                   by = .(fips)]
+  agg_dt <- calculate_ypll2(tmp_dt, byvar = "fips")
 
   agg_dt
 }, mc.cores = 6)
