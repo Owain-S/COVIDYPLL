@@ -2,6 +2,7 @@
 
 export(calculate_provisional_le)
 export(calculate_ypll)
+export(calculate_ypll2)
 export(dl_us_standard_population)
 export(get_county_info)
 export(get_county_pop_size)
