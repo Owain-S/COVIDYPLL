@@ -51,7 +51,7 @@ if (resnum == 2) {
   warmup <- 500
 }
 if (resnum == 3) {
-  sd_vec <- ifelse(mort2020$covid_19_deaths < 10, 1, mort2020$covid_19_deaths * 0.1)
+  sd_vec <- ifelse(mort2020$covid_19_deaths < 7, 1, mort2020$covid_19_deaths * 0.15)
   iters <- 7000
   warmup <- 1000
 }
@@ -68,7 +68,7 @@ if (resnum == 5) {
 if (resnum == 6) {
   sd_vec <- ifelse(mort2020$covid_19_deaths < 5, 1, mort2020$covid_19_deaths * 0.2)
   sd_vec_nat <- us_mort2020$covid_19_deaths * 0.2
-  iters <- 3000
+  iters <- 4000
   warmup <- 500
 }
 if (resnum == 7) {
