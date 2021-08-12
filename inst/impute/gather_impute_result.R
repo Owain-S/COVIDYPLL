@@ -170,20 +170,21 @@ g2 <- ggplot(data = covid19deaths_sum[y_cate != "0"]) +
   geom_errorbar(aes(x = y_cate, ymin = lb, ymax = ub),
                 width = 0, color = "gray30", size = 0.5) +
   facet_grid(age_group ~ quarter, scale = "free") +
-  xlab("Number of COVID-19 Deaths") +
-  ylab("Proportion of Counties") +
+  xlab("\nNumber of COVID-19 Deaths") +
+  ylab("Proportion of Counties\n") +
   ggtitle("Distribution of county COVID-19 deaths (positive only)") +
   scale_fill_manual(values = c("deepskyblue", "gray")) +
   theme_bw() +
-  theme(plot.title = element_text(size = 18, hjust = 0.5),
-        strip.text.x = element_text(size = 12, colour = "gray20"),
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face = "bold"),
+        strip.text.x = element_text(size = 18, colour = "gray20"),
+        strip.text.y = element_text(size = 18, colour = "gray20", angle = 0),
         strip.background = element_rect(colour = NA, fill = "white"),
         legend.title = element_blank(),
-        legend.text = element_text(size = 10),
+        legend.text = element_text(size = 14),
         axis.text.x = element_text(size = 10),
         axis.text.y = element_text(size = 10),
-        axis.title.x = element_text(size = 14),
-        axis.title.y = element_text(size = 14),
+        axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
         legend.position = "bottom")
 ggsave(paste0("inst/impute/results/impute distribution_age_hurdle_agg", i,".png"),
        plot = g2, device = "png", height = 10, width = 18)
@@ -236,21 +237,21 @@ for (x in rucc_ls) {
     geom_errorbar(aes(x = y_cate, ymin = lb, ymax = ub),
                   width = 0, color = "gray30", size = 0.5) +
     facet_grid(age_group ~ quarter, scale = "free") +
-    xlab("Number of COVID-19 Deaths") +
-    ylab("Proportion of Counties") +
+    xlab("\nNumber of COVID-19 Deaths") +
+    ylab("Proportion of Counties\n") +
     ggtitle(paste0(x, " (positive only): number of counties = ", tmp_n_cnty)) +
     scale_fill_manual(values = c("deepskyblue", "gray")) +
     theme_bw() +
-    theme(plot.title = element_text(size = 20, hjust = 0.5),
-          strip.text.x = element_text(size = 12, colour = "gray20"),
-          strip.text.y = element_text(size = 12, colour = "gray20"),
+    theme(plot.title = element_text(size = 22, hjust = 0.5, face = "bold"),
+          strip.text.x = element_text(size = 18, colour = "gray20"),
+          strip.text.y = element_text(size = 18, colour = "gray20", angle = 0),
           strip.background = element_rect(colour = NA, fill = "white"),
           legend.title = element_blank(),
-          legend.text = element_text(size = 10),
+          legend.text = element_text(size = 14),
           axis.text.x = element_text(size = 10),
           axis.text.y = element_text(size = 10),
-          axis.title.x = element_text(size = 14),
-          axis.title.y = element_text(size = 14),
+          axis.title.x = element_text(size = 20),
+          axis.title.y = element_text(size = 20),
           legend.position = "bottom")
 
   ggsave(paste0("inst/impute/results/impute distribution_hurdle_agg", i,"(", x, ").png"),
@@ -320,54 +321,60 @@ covid19deaths_sum[, type := factor(type, levels = c("data", "simulated"))]
 covid19deaths_sum[, `:=` (quarter = paste0("Q", quarter),
                           age_group = paste0("Age", age_group))]
 
-ggplot(data = covid19deaths_sum[y_cate != "0"]) +
+g2 <- ggplot(data = covid19deaths_sum[y_cate != "0"]) +
   geom_bar(aes(x = y_cate, y = pct, fill = type),
            stat = "identity", color = "gray30", position = "dodge2", size = 0.3) +
   facet_grid(age_group~quarter, scale = "free") +
-  xlab("Number of COVID-19 Deaths") +
-  ylab("Proportion of Counties") +
-  ggtitle("Distribution of county-level COVID-19 deaths (positive only; simulated vs data)") +
+  xlab("\nNumber of COVID-19 Deaths") +
+  ylab("Proportion of Counties\n") +
+  ggtitle("\n(B) Distribution of county-level COVID-19 deaths (positive only; simulated vs data)") +
   scale_fill_manual(values = c("gray", "deepskyblue")) +
   theme_bw() +
-  theme(plot.title = element_text(size = 20, hjust = 0.5),
-        strip.text = element_text(size = 12, colour = "gray20"),
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face = "bold"),
+        strip.text.x = element_text(size = 18, colour = "gray20"),
+        strip.text.y = element_text(size = 18, colour = "gray20", angle = 0),
         strip.background = element_rect(colour = NA, fill = "white"),
         legend.title = element_blank(),
-        legend.text = element_text(size = 10),
+        legend.text = element_text(size = 14),
         axis.text.x = element_text(size = 10),
         axis.text.y = element_text(size = 10),
-        axis.title.x = element_text(size = 14),
-        axis.title.y = element_text(size = 14),
+        axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
         legend.position = "bottom")
-ggsave(paste0("inst/impute/results/distribution simulated and data_hurdle_agg", i,".png"),
-       device = "png", height = 10, width = 18)
+# ggsave(paste0("inst/impute/results/distribution simulated and data_hurdle_agg", i,".png"),
+#        device = "png", height = 10, width = 18)
 
 
 covid19deaths_sum[, label := round(pct, 2)]
 
-ggplot(data = covid19deaths_sum[y_cate == "0"]) +
+g1 <- ggplot(data = covid19deaths_sum[y_cate == "0"]) +
   geom_bar(aes(x = type, y = pct, fill = type),
            stat = "identity", color = "gray30", position = "dodge2", size = 0.3) +
   geom_text(aes(x = type, y = 0.5, label = label,
                 group = type),
             stat = "identity", position = "stack", vjust = 1.5, size = 4) +
   facet_grid(age_group~quarter, scale = "free") +
-  ylab("Proportion of Counties") +
-  ggtitle("Proportion of counties with zero COVID-19 death (simulated vs data)") +
+  ylab("Proportion of Counties\n") +
+  ggtitle("\n(A) Proportion of counties with zero COVID-19 death (simulated vs data)") +
   scale_fill_manual(values = c("gray", "deepskyblue")) +
   theme_bw() +
-  theme(plot.title = element_text(size = 20, hjust = 0.5),
-        strip.text = element_text(size = 12, colour = "gray20"),
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face = "bold"),
+        strip.text.x = element_text(size = 18, colour = "gray20"),
+        strip.text.y = element_text(size = 18, colour = "gray20", angle = 0),
         strip.background = element_rect(colour = NA, fill = "white"),
         legend.title = element_blank(),
-        legend.text = element_text(size = 10),
+        legend.text = element_text(size = 14),
         axis.text.x = element_text(size = 10),
         axis.text.y = element_text(size = 10),
         axis.title.x = element_blank(),
-        axis.title.y = element_text(size = 14),
-        legend.position = "none")
-ggsave(paste0("inst/impute/results/distribution simulated and data prop zeros_hurdle_agg", i,".png"),
-       device = "png", height = 8, width = 10)
+        axis.title.y = element_text(size = 20),
+        legend.position = "bottom")
+# ggsave(paste0("inst/impute/results/distribution simulated and data prop zeros_hurdle_agg", i,".png"),
+#        device = "png", height = 8, width = 10)
+
+ggarrange(g1, g2, nrow = 2, common.legend = T, legend = "bottom", heights = c(1, 1.1))
+ggsave(paste0("inst/impute/results/distribution simulated and data prop hurdle_agg", i,".png"),
+       device = "png", height = 16, width = 14)
 
 
 

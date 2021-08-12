@@ -261,7 +261,3 @@ map_rucc <- ggplot(data = sum_dt) +
 ggsave(map_rucc, file = 'inst/rucc map.tiff', device = "tiff", width = 10, height = 6)
 
 
-
-
-
-
