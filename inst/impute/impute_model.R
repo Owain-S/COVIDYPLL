@@ -65,6 +65,18 @@ if (resnum == 5) {
   iters <- 8000
   warmup <- 1000
 }
+if (resnum == 6) {
+  sd_vec <- ifelse(mort2020$covid_19_deaths < 5, 1, mort2020$covid_19_deaths * 0.2)
+  sd_vec_nat <- us_mort2020$covid_19_deaths * 0.2
+  iters <- 3000
+  warmup <- 500
+}
+if (resnum == 7) {
+  sd_vec <- ifelse(mort2020$covid_19_deaths < 7, 1, mort2020$covid_19_deaths * 0.15)
+  sd_vec_nat <- us_mort2020$covid_19_deaths * 0.15
+  iters <- 7000
+  warmup <- 1000
+}
 
 
 data_ls <- list(
@@ -101,19 +113,42 @@ data_ls <- list(
   gp_ix = covid19d_cty$gp_ix
 )
 
-begin_time <- Sys.time()
-fit_hurdle <- stan(
-  file = "stan/impute_hurdle_agg.stan",  # Stan program
-  data = data_ls,         # named list of data
-  chains = 3,             # number of Markov chains
-  warmup = warmup,           # number of warmup iterations per chain
-  iter = iters,            # total number of iterations per chain
-  cores = 3,              # number of cores (could use one per chain)
-  refresh = 10,
-  pars = c("bQ", "shape", "b_hu", "Ymi", "y_sim"),
-  seed = 20210519
-)
-print(Sys.time() - begin_time)
+if (resnum %in% c(6, 7)) {
+  data_ls$nat_d <- us_mort2020$covid_19_deaths
+  data_ls$sd_nat_d <- sd_vec_nat
+  data_ls$n_nat_d <- nrow(us_mort2020)
+  data_ls$n_gp_nat <- nrow(us_mort2020)
+  data_ls$gp_nat_ix <- covid19d_cty$age_num
+
+  begin_time <- Sys.time()
+  fit_hurdle <- stan(
+    file = "stan/impute_hurdle_agg_nat.stan",  # Stan program
+    data = data_ls,         # named list of data
+    chains = 3,             # number of Markov chains
+    warmup = warmup,           # number of warmup iterations per chain
+    iter = iters,            # total number of iterations per chain
+    cores = 3,              # number of cores (could use one per chain)
+    refresh = 10,
+    pars = c("bQ", "shape", "b_hu", "Ymi", "y_sim"),
+    seed = 20210519
+  )
+  print(Sys.time() - begin_time)
+
+} else {
+  begin_time <- Sys.time()
+  fit_hurdle <- stan(
+    file = "stan/impute_hurdle_agg.stan",  # Stan program
+    data = data_ls,         # named list of data
+    chains = 3,             # number of Markov chains
+    warmup = warmup,           # number of warmup iterations per chain
+    iter = iters,            # total number of iterations per chain
+    cores = 3,              # number of cores (could use one per chain)
+    refresh = 10,
+    pars = c("bQ", "shape", "b_hu", "Ymi", "y_sim"),
+    seed = 20210519
+  )
+  print(Sys.time() - begin_time)
+}
 
 saveRDS(fit_hurdle, paste0("results/fit_hurdle_agg", resnum, ".RDS"))
 
