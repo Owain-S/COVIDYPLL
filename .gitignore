@@ -8,3 +8,4 @@
 .Rproj.user
 *.docx
 inst/impute/results/fit*.RDS
+inst/impute/results/
