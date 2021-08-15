@@ -15,7 +15,7 @@ library(mapproj)
 library(ggthemes)
 
 
-i <- 2
+i <- 3
 
 temp <- readRDS(paste0("inst/impute/bayes_impute_agg", i,".RDS"))
 
@@ -160,6 +160,7 @@ state_sum_dt_long <- melt(state_sum_dt, id.vars = c("state", "age_group"),
                           measure.vars = c("predicted", "data"))
 
 state_sum_dt[, type := "predicted"]
+state_sum_dt[, hit_target := ifelse(data >= lb_d & data <= ub_d, TRUE, FALSE)]
 
 state_sum_dt_long <- merge(state_sum_dt_long,
                            state_sum_dt[, .(state, age_group, type, lb_d, ub_d)],
