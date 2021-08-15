@@ -9,13 +9,13 @@ library(tidyverse)
 library(brms)
 library(ggpubr)
 
-i <- 2 # there are models 1, 2, 3 (4 and 5 are deleted)
+i <- 3 # there are models 1, 2, 3 (4 and 5 are deleted)
 
-if (i %in% c(1:2)) {
+if (i %in% c(1:2, 6)) {
   warmup <- 500 + 1
 }
 
-if (i %in% c(3:5)) {
+if (i %in% c(3:5, 7, 8)) {
   warmup <- 1000 + 1
 }
 
