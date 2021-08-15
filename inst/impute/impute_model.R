@@ -77,6 +77,23 @@ if (resnum == 7) {
   iters <- 7000
   warmup <- 1000
 }
+if (resnum == 8) {
+  X <- model.matrix( ~ quarter * age_group + quarter * urban_rural_code + age_group * urban_rural_code + l_pop_size, data = covid19d_cty)
+  X_hu <- model.matrix( ~ quarter * age_group + quarter * urban_rural_code + urban_rural_code, data = covid19d_cty)
+  sd_vec <- ifelse(mort2020$covid_19_deaths < 5, 1, mort2020$covid_19_deaths * 0.2)
+  sd_vec_nat <- us_mort2020$covid_19_deaths * 0.2
+  iters <- 7000
+  warmup <- 1000
+}
+if (resnum == 9) {
+  X <- model.matrix( ~ quarter * age_group + quarter * urban_rural_code + age_group * urban_rural_code + l_pop_size, data = covid19d_cty)
+  X_hu <- model.matrix( ~ quarter * age_group + quarter * urban_rural_code + urban_rural_code, data = covid19d_cty)
+  sd_vec <- ifelse(mort2020$covid_19_deaths < 7, 1, mort2020$covid_19_deaths * 0.15)
+  sd_vec_nat <- us_mort2020$covid_19_deaths * 0.15
+  iters <- 7000
+  warmup <- 1000
+}
+
 
 
 data_ls <- list(
@@ -113,7 +130,7 @@ data_ls <- list(
   gp_ix = covid19d_cty$gp_ix
 )
 
-if (resnum %in% c(6, 7)) {
+if (resnum %in% c(6, 7, 8)) {
   data_ls$nat_d <- us_mort2020$covid_19_deaths
   data_ls$sd_nat_d <- sd_vec_nat
   data_ls$n_nat_d <- nrow(us_mort2020)
