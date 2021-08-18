@@ -130,7 +130,7 @@ data_ls <- list(
   gp_ix = covid19d_cty$gp_ix
 )
 
-if (resnum %in% c(6, 7, 8)) {
+if (resnum %in% c(6, 7, 8, 9)) {
   data_ls$nat_d <- us_mort2020$covid_19_deaths
   data_ls$sd_nat_d <- sd_vec_nat
   data_ls$n_nat_d <- nrow(us_mort2020)
