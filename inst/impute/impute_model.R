@@ -93,6 +93,20 @@ if (resnum == 9) {
   iters <- 7000
   warmup <- 1000
 }
+if (resnum == 10) {
+  X <- model.matrix( ~ quarter * age_group + quarter * urban_rural_code + age_group * urban_rural_code + l_pop_size, data = covid19d_cty)
+  X_hu <- model.matrix( ~ quarter * age_group + quarter * urban_rural_code + urban_rural_code, data = covid19d_cty)
+  sd_vec <- ifelse(mort2020$covid_19_deaths < 5, 1, mort2020$covid_19_deaths * 0.2)
+  iters <- 4000
+  warmup <- 1000
+}
+if (resnum == 11) {
+  X <- model.matrix( ~ quarter * age_group + quarter * urban_rural_code + age_group * urban_rural_code + l_pop_size, data = covid19d_cty)
+  X_hu <- model.matrix( ~ quarter * age_group + quarter * urban_rural_code + urban_rural_code, data = covid19d_cty)
+  sd_vec <- ifelse(mort2020$covid_19_deaths < 7, 1, mort2020$covid_19_deaths * 0.15)
+  iters <- 4000
+  warmup <- 1000
+}
 
 
 
