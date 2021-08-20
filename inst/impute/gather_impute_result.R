@@ -8,14 +8,15 @@ library(MASS)
 library(tidyverse)
 library(brms)
 library(ggpubr)
+library(parallel)
 
-i <- 3 # there are models 1, 2, 3 (4 and 5 are deleted)
+i <- 9 # there are models 1, 2, 3 (4 and 5 are deleted)
 
 if (i %in% c(1:2, 6)) {
   warmup <- 500 + 1
 }
 
-if (i %in% c(3:5, 7, 8)) {
+if (i %in% c(3:5, 7:11)) {
   warmup <- 1000 + 1
 }
 
@@ -43,7 +44,8 @@ traceplot(fit_hurdle, pars = pars)
 ggsave(paste0("inst/impute/results/traceplot of fixed effects_hurdle_agg", i,".png"), device = "png",
        height = 12, width = 14)
 
-library(parallel)
+
+#### Sample data
 
 ix_ymis <- grep("Ymi", names(fit_hurdle@sim$samples[[1]]))
 ymis_draws <- mclapply(ix_ymis, function(x) {

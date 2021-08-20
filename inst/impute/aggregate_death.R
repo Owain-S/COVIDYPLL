@@ -15,7 +15,7 @@ library(mapproj)
 library(ggthemes)
 
 
-i <- 3
+i <- 9
 
 temp <- readRDS(paste0("inst/impute/bayes_impute_agg", i,".RDS"))
 
@@ -247,6 +247,29 @@ g1 <- ggplot(data = state_sum_dt) +
 ggsave(paste0("inst/impute/results/corr_state_predicted_data", i, ".png"),
        device = "png", plot = g1, height = 5, width = 6)
 
+
+## National level distribution
+nat_sum_dt_all <- mclapply(c(1:nrow(ymis)), function(x) {
+  covid19d_cty$covid_19_deaths[ix_miss] <- ymis[x, ]
+  sum_dt <- covid19d_cty[, list(covid_19_deaths = sum(covid_19_deaths, na.rm = T)),
+                         by = .(age_group)]
+  return(sum_dt)
+}, mc.cores = 6)
+
+nat_sum_dt_all <- rbindlist(nat_sum_dt_all)
+nat_sum_dt <- nat_sum_dt_all[, list(m = mean(covid_19_deaths),
+                                        lb_d = quantile(covid_19_deaths, 0.025),
+                                        ub_d = quantile(covid_19_deaths, 0.975)),
+                                 by = .(age_group)]
+
+nat_sum_dt <- merge(nat_sum_dt, mort2020[state == "US", .(age_group, covid_19_deaths)],
+                      by = c("age_group"), all.x = T)
+
+nat_sum_dt_all <- merge(nat_sum_dt_all, mort2020[state == "US", .(age_group, covid_19_deaths)],
+                        by = c("age_group"), all.x = T)
+
+nat_sum_dt_all[, small := covid_19_deaths.x <= covid_19_deaths.y]
+nat_sum_dt_all[, list(p = mean(small)), by = .(age_group)]
 
 ## Calculate annual distribution of the Bayesian simulation data
 
