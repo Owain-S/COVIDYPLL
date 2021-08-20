@@ -117,13 +117,13 @@ if (resnum == 12) {
   ## Poisson assumption
   sd_vec <- ifelse(mort2020$covid_19_deaths < 1, 1, sqrt(mort2020$covid_19_deaths))
   sd_vec_nat <- sqrt(us_mort2020$covid_19_deaths)
-  iters <- 4000
+  iters <- 5000
   warmup <- 1000
 }
 if (resnum == 13) {
   ## Negative Binomial assumption: r = 1
   sd_vec <- ifelse(mort2020$covid_19_deaths < 1, 1, sqrt(mort2020$covid_19_deaths + 1 * mort2020$covid_19_deaths^2))
-  sd_vec_nat <- sqrt(us_mort2020$covid_19_deaths + 1 * mort2020$covid_19_deaths^2)
+  sd_vec_nat <- sqrt(us_mort2020$covid_19_deaths + 1 * us_mort2020$covid_19_deaths^2)
   iters <- 4000
   warmup <- 1000
 }
