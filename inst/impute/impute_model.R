@@ -40,6 +40,12 @@ covid19d_cty <- merge(covid19d_cty, mort2020[, .(state, age_group, gp_ix)],
                       by = c("state", "age_group"), all.x = T)
 covid19d_cty <- covid19d_cty[order(row_ix)]
 
+# library(MASS)
+# nbGLM <- glm.nb(covid_19_deaths ~ age_group + state, data=mort2020[state != "US"])
+# nbGLM$theta
+# > nbGLM$theta
+# [1] 16.78252
+
 if (resnum == 1) {
   sd_vec <- ifelse(mort2020$covid_19_deaths < 10, 10, mort2020$covid_19_deaths * 0.2)
   iters <- 4000
@@ -107,7 +113,27 @@ if (resnum == 11) {
   iters <- 4000
   warmup <- 1000
 }
-
+if (resnum == 12) {
+  ## Poisson assumption
+  sd_vec <- ifelse(mort2020$covid_19_deaths < 1, 1, sqrt(mort2020$covid_19_deaths))
+  sd_vec_nat <- sqrt(us_mort2020$covid_19_deaths)
+  iters <- 4000
+  warmup <- 1000
+}
+if (resnum == 13) {
+  ## Negative Binomial assumption: r = 1
+  sd_vec <- ifelse(mort2020$covid_19_deaths < 1, 1, sqrt(mort2020$covid_19_deaths + 1 * mort2020$covid_19_deaths^2))
+  sd_vec_nat <- sqrt(us_mort2020$covid_19_deaths + 1 * mort2020$covid_19_deaths^2)
+  iters <- 4000
+  warmup <- 1000
+}
+if (resnum == 14) {
+  ## Negative Binomial assumption: r = 17 (estimated above)
+  sd_vec <- ifelse(mort2020$covid_19_deaths < 1, 1, sqrt(mort2020$covid_19_deaths + (1/17) * mort2020$covid_19_deaths^2))
+  sd_vec_nat <- sqrt(us_mort2020$covid_19_deaths + (1/17) * us_mort2020$covid_19_deaths^2)
+  iters <- 4000
+  warmup <- 1000
+}
 
 
 data_ls <- list(
@@ -144,7 +170,7 @@ data_ls <- list(
   gp_ix = covid19d_cty$gp_ix
 )
 
-if (resnum %in% c(6, 7, 8, 9)) {
+if (resnum %in% c(6, 7, 8, 9, 12, 13, 14)) {
   data_ls$nat_d <- us_mort2020$covid_19_deaths
   data_ls$sd_nat_d <- sd_vec_nat
   data_ls$n_nat_d <- nrow(us_mort2020)
