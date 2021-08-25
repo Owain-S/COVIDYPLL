@@ -9,3 +9,4 @@
 *.docx
 inst/impute/results/fit*.RDS
 inst/impute/results/
+inst/*.xlsx
