@@ -5,7 +5,7 @@
 \alias{policy}
 \title{policy}
 \format{
-An object of class \code{data.table} (inherits from \code{data.frame}) with 12568 rows and 15 columns.
+An object of class \code{data.table} (inherits from \code{data.frame}) with 12568 rows and 14 columns.
 }
 \usage{
 policy

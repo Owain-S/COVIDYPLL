@@ -5,7 +5,7 @@
 \alias{le}
 \title{life expectancy}
 \format{
-An object of class \code{data.table} (inherits from \code{data.frame}) with 7 rows and 13 columns.
+An object of class \code{data.table} (inherits from \code{data.frame}) with 7 rows and 5 columns.
 }
 \usage{
 le

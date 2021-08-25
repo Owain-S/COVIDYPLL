@@ -5,7 +5,7 @@
 \alias{mort2020}
 \title{mort2020 (2020 national and state-level covid-19 and total deaths)}
 \format{
-An object of class \code{data.table} (inherits from \code{data.frame}) with 371 rows and 7 columns.
+An object of class \code{data.table} (inherits from \code{data.frame}) with 371 rows and 6 columns.
 }
 \usage{
 mort2020

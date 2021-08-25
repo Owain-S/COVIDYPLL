@@ -5,7 +5,7 @@
 \alias{covid19d_cty}
 \title{covid19d_cty (2020 county-level covid-19 deaths)}
 \format{
-An object of class \code{data.table} (inherits from \code{data.frame}) with 87864 rows and 13 columns.
+An object of class \code{data.table} (inherits from \code{data.frame}) with 87864 rows and 15 columns.
 }
 \usage{
 covid19d_cty

@@ -4,7 +4,13 @@
 \alias{calculate_ypll}
 \title{Calculate YPLL}
 \usage{
-calculate_ypll(dt, byvar = NULL, year_rle = 2018)
+calculate_ypll(
+  dt,
+  byvar = NULL,
+  age_adjusted_output = TRUE,
+  year_rle = NA,
+  export_data_by_simno = FALSE
+)
 }
 \description{
 Calculate YPLL
