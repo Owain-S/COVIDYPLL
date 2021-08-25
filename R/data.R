@@ -10,8 +10,5 @@
 #' mort2020 (2020 national and state-level covid-19 and total deaths)
 "mort2020"
 
-#' imputed data agg
-"impute_sample"
-
 #' policy
 "policy"

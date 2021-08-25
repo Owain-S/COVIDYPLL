@@ -254,11 +254,9 @@ get_mort_nation_state <- function(select_sex = "All Sexes", select_year = 2020,
 
   tab <- merge(tab, state_pop, by = c("state", "age_group"), all.x = T)
   tab <- tab[order(state, age_group)]
-  tab[, pr := (covid_19_deaths/pop_size)]
-  tab[, sd_covid19d := sqrt(pr * (1 - pr) / pop_size) * pop_size]
 
   keep_cols <- c("state", "year", "sex", "age_group",
-                 "covid_19_deaths", "total_deaths", "sd_covid19d")
+                 "covid_19_deaths", "total_deaths")
   tab <- tab[, ..keep_cols][order(state, age_group)]
 
   return(tab)
@@ -312,40 +310,52 @@ calculate_provisional_le <- function() {
   us_mort$Tx[1] <- sum(us_mort$Lx)
   us_mort[, ex := Tx / lx]
   us_mort[, avg_le2020 := copy(ex)]
+  us_mort <- us_mort[, .(age_group, avg_le2020)]
 
-  ## Lift expectancy in 2018 https://www.cdc.gov/nchs/data/nvsr/nvsr69/nvsr69-12-508.pdf
-  lft2018 <- openxlsx::read.xlsx("https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Publications/NVSR/69-12/Table01.xlsx")
-  colnames(lft2018) <- c("age", "qx", "lx", "dx", "Lx", "Tx", "ex")
-  lft2018 <- lft2018[3:(nrow(lft2018) - 1), ]
-  lft2018 <- data.table(lft2018)
-  lft2018$age[lft2018$age == "100 and over"] <- "100–120"
+  ## Lift expectancy in 2018 https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Publications/NVSR/69-12/Table01.xlsx
+  ## Lift expectancy in 2017 https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Publications/NVSR/68_07/Table01.xlsx
+  wp <- c("2018" = "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Publications/NVSR/69-12/Table01.xlsx",
+          "2017" = "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Publications/NVSR/68_07/Table01.xlsx")
 
-  tmp_age <- strsplit(lft2018$age, "–")
-  min_age <- as.numeric(unlist(lapply(tmp_age, `[[`, 1)))
-  lft2018[, `:=` (min_age = min_age)]
-  lft2018[, `:=` (age_group = cut(min_age, breaks = age_breaks$breaks,
-                                  labels = age_breaks$labels, right = F),
-                  age = NULL)]
-  tmpcol <- c("qx", "lx", "dx", "Lx", "Tx", "ex")
-  lft2018[, (tmpcol) := lapply(.SD, as.numeric), .SDcols = tmpcol]
+  lftable <- lapply(c(1:length(wp)), function(i) {
+    x <- wp[i]
+    tmplft <- openxlsx::read.xlsx(x)
+    colnames(tmplft) <- c("age", "qx", "lx", "dx", "Lx", "Tx", "ex")
+    tmplft <- tmplft[3:(nrow(tmplft) - 1), ]
+    tmplft <- data.table(tmplft)
+    tmplft$age[tmplft$age == "100 and over"] <- "100–120"
 
-  sublft2018 <- lft2018[, list(max_lx = max(lx),
-                               max_Tx = max(Tx)),
-                        by = .(age_group)]
-  sublft2018 <- sublft2018[, `:=` (min_lx = ifelse(is.na(shift(max_lx, type = "lead")), 0, shift(max_lx, type = "lead")),
-                                   min_Tx = ifelse(is.na(shift(max_Tx, type = "lead")), 0, shift(max_Tx, type = "lead")))]
+    tmp_age <- strsplit(tmplft$age, "–")
+    min_age <- as.numeric(unlist(lapply(tmp_age, `[[`, 1)))
+    tmplft[, `:=` (min_age = min_age)]
+    tmplft[, `:=` (age_group = cut(min_age, breaks = age_breaks$breaks,
+                                    labels = age_breaks$labels, right = F),
+                    age = NULL)]
+    tmpcol <- c("qx", "lx", "dx", "Lx", "Tx", "ex")
+    tmplft[, (tmpcol) := lapply(.SD, as.numeric), .SDcols = tmpcol]
 
-  sublft2018 <- sublft2018[!is.na(age_group), ]
-  sublft2018[, `:=` (dx = max_lx - min_lx,
-                     Lx = max_Tx - min_Tx,
-                     lx = max_lx)]
-  sublft2018[, `:=` (qx = dx / lx,
-                     Tx = max_Tx)]
-  # sublft2018$Tx[1] <- sum(sublft2018$Lx)
-  sublft2018[, avg_le2018 := Tx / lx]
+    sublft <- tmplft[, list(max_lx = max(lx),
+                                 max_Tx = max(Tx)),
+                          by = .(age_group)]
+    sublft <- sublft[, `:=` (min_lx = ifelse(is.na(shift(max_lx, type = "lead")), 0, shift(max_lx, type = "lead")),
+                                     min_Tx = ifelse(is.na(shift(max_Tx, type = "lead")), 0, shift(max_Tx, type = "lead")))]
 
-  us_mort <- merge(us_mort, sublft2018[, .(age_group, avg_le2018)],
-                   by = "age_group", all.x = T)
+    sublft <- sublft[!is.na(age_group), ]
+    sublft[, `:=` (dx = max_lx - min_lx,
+                       Lx = max_Tx - min_Tx,
+                       lx = max_lx)]
+    sublft[, `:=` (qx = dx / lx,
+                       Tx = max_Tx)]
+    # sublft$Tx[1] <- sum(sublft$Lx)
+    sublft[, paste0("avg_le", names(x)) := Tx / lx]
+    keep_cols <- c("age_group", grep("avg_le", colnames(sublft), value = T))
+    sublft[, ..keep_cols]
+  })
+
+  lftable <- Reduce(function(x, y) merge(x, y, by = "age_group", all.x = TRUE), lftable)
+  lftable[, avg_le := (avg_le2018 + avg_le2017) / 2]
+
+  us_mort <- merge(us_mort, lftable, by = "age_group", all.x = T)
 
   return(us_mort)
 }

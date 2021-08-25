@@ -61,6 +61,31 @@ set_nyc_fips <- function() {
   c(36005, 36047, 36061, 36081, 36085)
 }
 
+#' @title Combine covid19d_cty and 1000 imputation samples
+#' @import data.table
+#' @export
+bind1000samples <- function() {
+  death_dt <- copy(covid19d_cty)
+  death_dt <- death_dt[, .(row_ix, fips, age_group, urban_rural_code, quarter, covid_19_deaths,
+                           state, svi_cate, pop_size)]
+  death_dt <- merge(death_dt, le, by = c("age_group"), all.x = T)
+  death_dt <- merge(death_dt, std_pop_wgt[, .(age_group, std_pop_wgt)], by = c("age_group"), all.x = T)
+  death_dt <- death_dt[order(row_ix)]
+
+  ix_miss <- impute_sample$ix_miss
+  ymis <- impute_sample$ymis_draws
+
+  out_ls <- lapply(c(1:nrow(ymis)), function(x) {
+    tmp_dt <- copy(death_dt)
+    tmp_dt$covid_19_deaths[ix_miss] <- ymis[x, ]
+    tmp_dt[, simno := x]
+    return(tmp_dt)
+  })
+  out_dt <- rbindlist(out_ls)
+
+  return(out_dt)
+}
+
 #' @title Calculate YPLL
 #' @import data.table
 #' @export
@@ -82,38 +107,96 @@ calculate_ypll_old <- function(dt) {
   dt
 }
 
-#' @title Calculate YPLL
-#' @import data.table
+#' @title summarize
 #' @export
-calculate_ypll <- function(dt, byvar = NULL, year_rle = 2018) {
+summarize_vars <- function(x) {
+  list(mean = mean(x, na.rm = T),
+       lb = quantile(x, prob = 0.025, na.rm = T),
+       ub = quantile(x, prob = 0.975, na.rm = T))
+}
+
+#' @title Calculate YPLL
+#' @import data.table dplyr
+#' @export
+calculate_ypll <- function(dt,
+                           byvar = NULL,
+                           age_adjusted_output = TRUE,
+                           year_rle = NA, # Default using average LE between 2017 and 2018
+                           export_data_by_simno = FALSE) {
   if (!is.data.table(dt)) stop("This is not data.table")
-  calc_columns <- c("covid_19_deaths", "avg_le2020", "avg_le2018", "pop_size", "std_pop_wgt")
-  if (!all(calc_columns %in% colnames(dt))) stop("check whether the columns has \'covid_19_deaths\', \'avg_le2020\', \'avg_le2018\', \'pop_size\', \'std_pop_wgt\'")
-
-  out_dt <- copy(dt)
-  if (year_rle == 2018) dt[, rle := avg_le2018]
-  if (year_rle == 2020) dt[, rle := avg_le2020]
-
-  out_dt[, `:=` (covid19_death_rate = (covid_19_deaths / pop_size) * 100000,
-             covid19_death_rate_age_adjusted = (covid_19_deaths / pop_size) * 100000 * std_pop_wgt, # age_adjusted death rate https://www.cdc.gov/nchs/data/statnt/statnt06rv.pdf
-             tot_ypll = covid_19_deaths * rle,
-             ypll_rate = ((covid_19_deaths / pop_size) * 100000) * rle,
-             ypll_rate_age_adjusted = ((covid_19_deaths / pop_size) * 100000) * rle * std_pop_wgt)]
-  out_dt[pop_size == 0]$covid19_death_rate <- 0
-  out_dt[pop_size == 0]$covid19_death_rate_age_adjusted <- 0
-  out_dt[pop_size == 0]$tot_ypll <- 0
-  out_dt[pop_size == 0]$ypll_rate <- 0
-  out_dt[pop_size == 0]$ypll_rate_age_adjusted <- 0
-
-  if (is.null(by)) {
-    out_dt[, `:=` (covid19_death_rate_age_adjusted = NULL,
-                   ypll_rate_age_adjusted = NULL)]
-  } else {
-    out_dt <- out_dt[, list(tot_covid_d = sum(covid_19_deaths),
-                            covid19_death_rate_age_adjusted = sum(covid19_death_rate_age_adjusted),
-                            ypll_rate_age_adjusted = sum(ypll_rate_age_adjusted)),
-                     by = byvar]
+  calc_columns <- c("covid_19_deaths", "pop_size", "std_pop_wgt")
+  criteria <- all(calc_columns %in% colnames(dt)) & (length(grep("avg_le", c("avg_le2020", "avg_le2018", "avg_le2017"))) > 0)
+  if (!criteria) {
+    stop("check whether the columns has \'covid_19_deaths\', \'pop_size\', \'std_pop_wgt\', or any of the \'avg_leXXXX\'")
   }
-  out_dt
+
+  if (is.na(year_rle)) {
+    dt[, rle := avg_le]
+  } else {
+    if (year_rle == 2017) dt[, rle := avg_le2017]
+    if (year_rle == 2018) dt[, rle := avg_le2018]
+    if (year_rle == 2020) dt[, rle := avg_le2020]
+  }
+
+  if (!is.null(byvar)) {
+    if ("age_group" %in% byvar) {
+      age_adjusted_output <- FALSE
+      warnings("No age adjusted results are produced")
+    }
+  }
+
+  by_vars <- unique(c("simno", "fips", byvar, "age_group"))
+
+  pop_size <- unique(dt[simno == 1, .(fips, age_group, pop_size)])
+  sum_dt <- dt[, list(covid_19_deaths = sum(covid_19_deaths),
+                      rle = mean(rle),
+                      std_pop_wgt = mean(std_pop_wgt)),
+               by = by_vars]
+  sum_dt <- merge(sum_dt, pop_size, by = c("fips", "age_group"), all.x = T)
+
+  by_vars <- unique(c("simno", "age_group", byvar))
+
+  sum_dt <- sum_dt[, list(covid_19_deaths = sum(covid_19_deaths),
+                          pop_size = sum(pop_size),
+                          rle = mean(rle),
+                          std_pop_wgt = mean(std_pop_wgt)),
+                   by = c(by_vars)]
+
+  sum_dt[, `:=` (covid19_death_rate = (covid_19_deaths / pop_size) * 100000,
+                 tot_ypll = covid_19_deaths * rle,
+                 ypll_rate = ((covid_19_deaths / pop_size) * 100000) * rle)]
+  sum_dt[, `:=` (covid19_death_rate_agewt = covid19_death_rate * std_pop_wgt,
+                 ypll_rate_agewt = ypll_rate * std_pop_wgt)]
+
+  if (isTRUE(age_adjusted_output)) {
+    sum_vars <- c("covid_19_deaths", "covid19_death_rate_agewt", "tot_ypll", "ypll_rate_agewt")
+    mean_vars <- c("covid19_death_rate", "ypll_rate")
+    by_vars <- unique(c("simno", byvar))
+    agg_dt0 <- sum_dt[, lapply(.SD, sum), by = by_vars, .SDcols = sum_vars]
+    agg_dt1 <- sum_dt[, lapply(.SD, mean), by = by_vars, .SDcols = mean_vars]
+
+    agg_dt <- merge(agg_dt0, agg_dt1, by = by_vars)
+
+    out_vars <- c(sum_vars, mean_vars)
+    agg_sum <- agg_dt[, as.list(unlist(lapply(.SD, summarize_vars))), by = byvar, .SDcols = out_vars]
+    sum_dt <- agg_dt
+    colnames(sum_dt) <- gsub("agewt", "aa", colnames(sum_dt))
+  } else {
+    out_vars <- c("covid_19_deaths", "covid19_death_rate",
+                  "covid19_death_rate_agewt", "tot_ypll", "ypll_rate", "ypll_rate_agewt")
+    by_vars <- by_vars[!by_vars %in% c("simno")]
+    agg_sum <- sum_dt[, as.list(unlist(lapply(.SD, summarize_vars))), by = by_vars, .SDcols = out_vars]
+  }
+  colnames(agg_sum) <- gsub(".97.5%", "", colnames(agg_sum))
+  colnames(agg_sum) <- gsub(".2.5%", "", colnames(agg_sum))
+  colnames(agg_sum) <- gsub("\\.", "_", colnames(agg_sum))
+  colnames(agg_sum) <- gsub("agewt", "aa", colnames(agg_sum)) # age adjusted
+
+  if (isTRUE(export_data_by_simno)) {
+    out_dt <- list(agg_sum = agg_sum, sim_dt = sum_dt)
+    return(out_dt)
+  } else {
+    return(agg_sum)
+  }
 }
 
