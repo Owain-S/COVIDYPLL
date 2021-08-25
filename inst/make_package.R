@@ -2,6 +2,7 @@ rm(list = ls())
 
 library(COVIDYPLL)
 library(data.table)
+library(parallel)
 
 std_pop_wgt <- dl_us_standard_population()
 # le <- get_provisional_le() #  data calculated based on https://www.cdc.gov/nchs/data/vsrr/VSRR10-508.pdf
@@ -10,7 +11,7 @@ county_pop <- get_county_pop_size()
 covid19d_cty <- get_covid_death_cty()
 mort2020 <- get_mort_nation_state()
 uninsure <- get_uninsure_pop()
-impute_sample <- readRDS("inst/impute/bayes_impute_agg2.RDS") # aggregate results
+impute_sample <- readRDS("inst/impute/bayes_impute_agg8.RDS") # aggregate results
 
 # FIPS 2270 (Wade Hampton Census Area, AK) and and 46113 (Shannon County, SD)
 # are not found in the census (county_pop) data
@@ -21,7 +22,6 @@ covid19d_cty <- covid19d_cty[!fips %in% c(2270, 46113)]
 covid19d_cty[, row_ix := c(1:.N)]
 covid19d_cty <- merge(covid19d_cty, uninsure, by = c("fips"), all.x = T)
 covid19d_cty <- covid19d_cty[order(row_ix)]
-covid19d_cty[, row_ix := NULL]
 
 # Clean policy data
 policy <- readRDS("/Users/zoekao/Documents/CDC COVID/YPLLproj/Data/policy_dt.RDS")
@@ -40,6 +40,11 @@ setnames(policy, c("mask_acc1", "sah_acc1", "GB_acc1",
            "svi_num", paste0("theme", c(1:4), "_num"),
            "svi_cate", paste0("theme", c(1:4), "_cate")))
 
+
+covid19d_cty <- merge(covid19d_cty, unique(policy[, .(fips, svi_cate)]), by = "fips", all.x = T)
+covid19d_cty <- covid19d_cty[order(row_ix)]
+
+policy[, svi_cate := NULL]
 
 usethis::use_data(std_pop_wgt, overwrite = T)
 usethis::use_data(le, overwrite = T)
