@@ -88,7 +88,7 @@ if (resnum == 8) {
   X_hu <- model.matrix( ~ quarter * age_group + quarter * urban_rural_code + urban_rural_code, data = covid19d_cty)
   sd_vec <- ifelse(mort2020$covid_19_deaths < 5, 1, mort2020$covid_19_deaths * 0.2)
   sd_vec_nat <- us_mort2020$covid_19_deaths * 0.2
-  iters <- 7000
+  iters <- 4000
   warmup <- 1000
 }
 if (resnum == 9) {

@@ -14,8 +14,10 @@ library(broom)
 library(mapproj)
 library(ggthemes)
 
+# models 2, 3, 7, 8, 9, 11, 12, 14
+i <- 2
 
-i <- 9
+sum_est <- readRDS(paste0("inst/impute/results/sum_estimates_hurdle_agg", i,".RDS"))
 
 temp <- readRDS(paste0("inst/impute/bayes_impute_agg", i,".RDS"))
 
@@ -24,117 +26,68 @@ ymis <- temp$ymis_draws
 
 set.seed(20210621)
 
-## Death1: ignore NAs
-sum_dt <- covid19d_cty[, list(covid_19_deaths = sum(covid_19_deaths, na.rm = T)),
-                   by = .(fips, age_group, pop_size)]
-sum_dt <- merge(sum_dt, le[, .(age_group, avg_le2020)],
-                by = c("age_group"), all.x = T)
-sum_dt <- merge(sum_dt, std_pop_wgt[, .(age_group, std_pop_wgt)],
-                by = c("age_group"), all.x = T)
+mort_all <- mort2020[state == "US", .(age_group, covid_19_deaths)]
+mort_usa <- mort_all[, list(covid_19_deaths = sum(covid_19_deaths))]
 
-death1_dt <- sum_dt[, list(sum_covid19_deaths = sum(covid_19_deaths)),
-                    by = .(age_group)]
-death1_dt[, type := "No imputation"]
-
-
-## Death2: Bayesian impute
-death2_dt <- mclapply(c(1:nrow(ymis)), function(x) {
+death_dt <- mclapply(c(1:nrow(ymis)), function(x) {
   covid19d_cty$covid_19_deaths[ix_miss] <- ymis[x, ]
   sum_dt <- covid19d_cty[, list(covid_19_deaths = sum(covid_19_deaths, na.rm = T)),
                      by = .(fips, age_group, pop_size)]
-  sum_dt <- merge(sum_dt, le[, .(age_group, avg_le2020)],
-                  by = c("age_group"), all.x = T)
-  sum_dt <- merge(sum_dt, std_pop_wgt[, .(age_group, std_pop_wgt)],
-                  by = c("age_group"), all.x = T)
   sum_dt[, list(sum_covid19_deaths = sum(covid_19_deaths)), by = .(age_group)][, sim := x]
 }, mc.cores = 6)
 
-death2_dt <- rbindlist(death2_dt)
-death2_dt <- death2_dt[, list(sum_covid19_deaths = mean(sum_covid19_deaths),
+death_dt <- rbindlist(death_dt)
+death_dt <- merge(death_dt, mort_all, by = "age_group", all.x = T)
+
+death_dt <- death_dt[, list(sum_covid19_deaths = mean(sum_covid19_deaths),
                             lb_d = quantile(sum_covid19_deaths, 0.025),
-                            ub_d = quantile(sum_covid19_deaths, 0.975)),
+                            ub_d = quantile(sum_covid19_deaths, 0.975),
+                            pct_diff = mean(round((sum_covid19_deaths - covid_19_deaths)/covid_19_deaths* 100, 2)),
+                            pct_lb = quantile(round((sum_covid19_deaths - covid_19_deaths)/covid_19_deaths* 100, 2), 0.025),
+                            pct_ub = quantile(round((sum_covid19_deaths - covid_19_deaths)/covid_19_deaths* 100, 2), 0.975)),
                      by = .(age_group)]
-death2_dt[, type := "Bayesian imputation"]
 
-
-## Death3: Uniform distribution
-death3_dt <- mclapply(c(1:nrow(ymis)), function(x) {
-  covid19d_cty$covid_19_deaths[ix_miss] <- sample(c(1:9), length(ix_miss), rep = T)
+death_usa_dt <- mclapply(c(1:nrow(ymis)), function(x) {
+  covid19d_cty$covid_19_deaths[ix_miss] <- ymis[x, ]
   sum_dt <- covid19d_cty[, list(covid_19_deaths = sum(covid_19_deaths, na.rm = T)),
-                     by = .(fips, age_group, pop_size)]
-  sum_dt <- merge(sum_dt, le[, .(age_group, avg_le2020)],
-                  by = c("age_group"), all.x = T)
-  sum_dt <- merge(sum_dt, std_pop_wgt[, .(age_group, std_pop_wgt)],
-                  by = c("age_group"), all.x = T)
-
-  sum_dt[, list(sum_covid19_deaths = sum(covid_19_deaths)), by = .(age_group)][, sim := x]
+                         by = .(fips, age_group, pop_size)]
+  sum_dt[, list(sum_covid19_deaths = sum(covid_19_deaths))][, sim := x]
 }, mc.cores = 6)
 
-death3_dt <- rbindlist(death3_dt)
-death3_dt <- death3_dt[, list(sum_covid19_deaths = mean(sum_covid19_deaths),
+death_usa_dt <- rbindlist(death_usa_dt)
+death_usa_dt[, covid_19_deaths := mort_usa[["covid_19_deaths"]]]
+death_usa_dt <- death_usa_dt[, list(sum_covid19_deaths = mean(sum_covid19_deaths),
                             lb_d = quantile(sum_covid19_deaths, 0.025),
-                            ub_d = quantile(sum_covid19_deaths, 0.975)),
-                     by = .(age_group)]
-death3_dt[, type := "Uniform imputation"]
+                            ub_d = quantile(sum_covid19_deaths, 0.975),
+                            pct_diff = mean(round((sum_covid19_deaths - covid_19_deaths)/covid_19_deaths* 100, 2)),
+                            pct_lb = quantile(round((sum_covid19_deaths - covid_19_deaths)/covid_19_deaths* 100, 2), 0.025),
+                            pct_ub = quantile(round((sum_covid19_deaths - covid_19_deaths)/covid_19_deaths* 100, 2), 0.975))]
+death_usa_dt[, age_group := "Total"]
 
 
-death_all <- rbindlist(list(death1_dt, death2_dt, death3_dt), use.names = TRUE, fill = TRUE)
-death_all[, type := factor(type,
-                          levels = c("No imputation", "Bayesian imputation", "Uniform imputation"))]
+death_all <- rbindlist(list(death_dt, death_usa_dt), use.names = TRUE, fill = TRUE)
 
-death_all <- merge(death_all, mort2020[state == "US", .(age_group, covid_19_deaths)],
-                  by = c("age_group"), all.x = T)
-death_all <- death_all[order(type, age_group)]
-death_all[, pct_diff := round((sum_covid19_deaths - covid_19_deaths) / covid_19_deaths * 100, 2)]
+death_all[, `:=` (covid19death = format(round(sum_covid19_deaths), big.mark = ","),
+                  covid19death_ci = paste0("[", format(round(lb_d), big.mark = ","), ", ",
+                                    format(round(ub_d), big.mark = ","), "]"),
+                  pct_diff = paste0(round(pct_diff, 2), "%"),
+                  pct_diff_ci = paste0("[", paste0(round(pct_lb, 2), "%"), ", ",
+                                  paste0(round(pct_ub, 2), "%"), "]"))]
+death_all <- death_all[, .(age_group, covid19death, covid19death_ci, pct_diff, pct_diff_ci)]
 
-write.xlsx(death_all, paste0("inst/impute/results/covid19deaths_impute_age_group", i, ".xlsx"), row.names = F)
-
-# % overestimation
-(sum(death_all$sum_covid19_deaths[death_all$type == "Bayesian imputation"]) -
-    sum(mort2020[state == "US"]$covid_19_deaths)) / sum(mort2020[state == "US"]$covid_19_deaths)
-
-
-plot_death <- copy(death_all)
-plot_death$sum_covid19_deaths[plot_death$type == "Uniform imputation"] <- plot_death$covid_19_deaths[plot_death$type == "Uniform imputation"]
-plot_death$lb_d[plot_death$type == "Uniform imputation"] <- NA
-plot_death$ub_d[plot_death$type == "Uniform imputation"] <- NA
-plot_death$type <- as.character(plot_death$type)
-plot_death$type[plot_death$type == "Uniform imputation"] <- "Aggregate Data"
-plot_death$type <- factor(plot_death$type, levels = c("Aggregate Data", "No imputation", "Bayesian imputation"))
-
-ggplot(data = plot_death[type != "No imputation"]) +
-  geom_bar(aes(x = age_group, y = round(sum_covid19_deaths), fill = type),
-           stat = "identity", position = "dodge2", size = 0.8) +
-  scale_fill_manual(values = c("gray50", "deepskyblue")) +
-  scale_y_continuous(breaks = seq(0, 120000, 20000), labels = scales::comma) +
-  xlab("Age Group") +
-  ylab("Number of COVID-19 Deaths") +
-  ggtitle("Total number of COVID-19 deaths by age group") +
-  theme_bw() +
-  theme(plot.title = element_text(size = 20, hjust = 0.5),
-        strip.text.x = element_text(size = 12, colour = "gray20"),
-        strip.text.y = element_text(size = 12, colour = "gray20"),
-        strip.background = element_rect(colour = NA, fill = "white"),
-        legend.title = element_blank(),
-        legend.text = element_text(size = 10),
-        axis.text.x = element_text(size = 10),
-        axis.text.y = element_text(size = 10),
-        axis.title.x = element_text(size = 14),
-        axis.title.y = element_text(size = 14),
-        legend.position = "bottom")
-ggsave(paste0("inst/impute/results/total covid19 deaths_age_agg", i, ".png"),
-       device = "png", height = 5, width = 10)
-
-
-
-
-
+death_all <- melt(death_all, measure = list(c("covid19death", "covid19death_ci"),
+                                            c("pct_diff", "pct_diff_ci")),
+                  value.name = c("covid19deaths", "pct_diff"))
+death_all[, variable := ifelse(variable == 1, "posterior mean", "credible CI")]
+death_all[, variable := factor(variable, levels = c("posterior mean", "credible CI"))]
+death_all <- death_all[order(age_group, variable)]
 
 ## State level distribution
 state_sum_dt_all <- mclapply(c(1:nrow(ymis)), function(x) {
   covid19d_cty$covid_19_deaths[ix_miss] <- ymis[x, ]
   sum_dt <- covid19d_cty[, list(covid_19_deaths = sum(covid_19_deaths, na.rm = T)),
                          by = .(state, age_group)]
+  sum_dt[, simno := x]
   return(sum_dt)
 }, mc.cores = 6)
 
@@ -246,6 +199,31 @@ g1 <- ggplot(data = state_sum_dt) +
         legend.position = "bottom")
 ggsave(paste0("inst/impute/results/corr_state_predicted_data", i, ".png"),
        device = "png", plot = g1, height = 5, width = 6)
+
+
+## State level statistics accuracy
+state_sum_dt_all[, sqdiff := (predicted - data)^2] # square difference
+state_sum_dt_all[, N := .N, by = .(simno)]
+state_sum_dt_all[, rmse := sqrt(sum(sqdiff) / N),
+                 by = .(simno)]
+accuracy_measure_state <- unique(state_sum_dt_all[, .(simno, rmse, N)])
+
+print("Accuracy measure")
+accuracy_measure_state[, mean(rmse)]
+accuracy_measure_state[, sd(rmse)]
+mean(state_sum_dt$hit_target)
+
+added_dt <- data.table(age_group = c("", "mean of accuracy measure by state",
+                                     "sd of accuracy measure by state",
+                                     "pct hit state-level targets"),
+                       covid19deaths = c(NA, round(accuracy_measure_state[, mean(rmse)], 2),
+                                              round(accuracy_measure_state[, sd(rmse)], 2),
+                                              round(mean(state_sum_dt$hit_target), 2)))
+
+death_all <- rbindlist(list(death_all, added_dt), use.name = T, fill = T)
+write.xlsx(death_all, paste0("inst/impute/results/covid19deaths_impute_age_group", i, ".xlsx"), row.names = F)
+
+
 
 
 ## National level distribution

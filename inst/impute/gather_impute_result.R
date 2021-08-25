@@ -10,13 +10,13 @@ library(brms)
 library(ggpubr)
 library(parallel)
 
-i <- 9 # there are models 1, 2, 3 (4 and 5 are deleted)
+i <- 12 # there are models 1, 2, 3 (4 and 5 are deleted)
 
 if (i %in% c(1:2, 6)) {
   warmup <- 500 + 1
 }
 
-if (i %in% c(3:5, 7:11)) {
+if (i %in% c(3:5, 7:14)) {
   warmup <- 1000 + 1
 }
 
