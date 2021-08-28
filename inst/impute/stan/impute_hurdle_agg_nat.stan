@@ -216,8 +216,13 @@ model {
 }
 generated quantities {
   vector[N] y_sim;
+  vector[N] Yl = Y;
+  vector[N] log_lik;
+
+  Yl[Jmi] = Ymi;
   for (n in 1:N) {
     y_sim[n] = hurdle_gamma_rng(shape, mu[n], hu[n]);
+    log_lik[n] = hurdle_gamma_logit_lpdf(Yl[n] | shape, mu[n], hu[n]);
   }
 }
 
