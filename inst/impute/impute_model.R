@@ -186,7 +186,7 @@ if (resnum %in% c(6, 7, 8, 9, 12, 13, 14)) {
     iter = iters,            # total number of iterations per chain
     cores = 3,              # number of cores (could use one per chain)
     refresh = 10,
-    pars = c("bQ", "shape", "b_hu", "Ymi", "y_sim"),
+    pars = c("bQ", "shape", "b_hu", "Ymi", "y_sim", "log_lik"),
     seed = 20210519
   )
   print(Sys.time() - begin_time)
@@ -201,7 +201,7 @@ if (resnum %in% c(6, 7, 8, 9, 12, 13, 14)) {
     iter = iters,            # total number of iterations per chain
     cores = 3,              # number of cores (could use one per chain)
     refresh = 10,
-    pars = c("bQ", "shape", "b_hu", "Ymi", "y_sim"),
+    pars = c("bQ", "shape", "b_hu", "Ymi", "y_sim", "log_lik"),
     seed = 20210519
   )
   print(Sys.time() - begin_time)
