@@ -9,8 +9,9 @@ library(tidyverse)
 library(brms)
 library(ggpubr)
 library(parallel)
+library(loo)
 
-i <- 12 # there are models 1, 2, 3 (4 and 5 are deleted)
+i <- 8 # there are models 1, 2, 3 (4 and 5 are deleted)
 
 if (i %in% c(1:2, 6)) {
   warmup <- 500 + 1
@@ -27,15 +28,6 @@ ggarrange(g_stan_dig[[1]], g_stan_dig[[2]], g_stan_dig[[3]], nrow = 3)
 ggsave(paste0("inst/impute/results/stan_diag", i,".png"),
        device = "png", height = 10, width = 10)
 
-sampler_params <- get_sampler_params(fit_hurdle, inc_warmup = FALSE)
-sampler_params_chain1 <- sampler_params[[1]]
-colnames(sampler_params_chain1)
-mean_accept_stat_by_chain <- sapply(sampler_params, function(x) mean(x[, "accept_stat__"]))
-print(mean_accept_stat_by_chain)
-max_treedepth_by_chain <- sapply(sampler_params, function(x) max(x[, "treedepth__"]))
-print(max_treedepth_by_chain)
-
-
 pars <- c("bQ", "shape", "b_hu")
 sum_estimates <- round(summary(fit_hurdle, pars = pars, probs = c(0.025, 0.975))$summary, 3)
 saveRDS(sum_estimates, paste0("inst/impute/results/sum_estimates_hurdle_agg", i,".RDS"))
@@ -43,6 +35,27 @@ saveRDS(sum_estimates, paste0("inst/impute/results/sum_estimates_hurdle_agg", i,
 traceplot(fit_hurdle, pars = pars)
 ggsave(paste0("inst/impute/results/traceplot of fixed effects_hurdle_agg", i,".png"), device = "png",
        height = 12, width = 14)
+
+
+sampler_params <- get_sampler_params(fit_hurdle, inc_warmup = FALSE)
+sampler_params_chain1 <- sampler_params[[1]]
+colnames(sampler_params_chain1)
+mean_accept_stat_by_chain <- sapply(sampler_params, function(x) mean(x[, "accept_stat__"]))
+print(mean_accept_stat_by_chain)
+max_treedepth_by_chain <- sapply(sampler_params, function(x) max(x[, "treedepth__"]))
+
+r_hat <- stan_rhat(fit_hurdle)
+max_R_hat <- max(r_hat$data, na.rm = T)
+fit_summary <- summary(fit_hurdle, probs = c(0.5))$summary
+N <- dim(fit_summary)[[1]]
+iter <- dim(rstan::extract(fit_hurdle)[[1]])[[1]]
+pct_neff_ratio <- sum(fit_summary[,5] / iter < 0.001, na.rm = T)
+
+extract_log_lik(fit_hurdle, "log_lik")
+
+diag_stats <- data.frame(diag_stats = c("Max Rhat", "Pct Ratio of N Eff to Sample Size <0.001"),
+                         value = c(max_R_hat, neff_ratio))
+
 
 
 #### Sample data
