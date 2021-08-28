@@ -33,10 +33,11 @@ plot_age_adjusted_ypll <- function(dt, byvar, year_rle = NA,
   all_ypll <- all_ypll[!is.na(eval(parse(text = paste0(byvar))))]
 
   title_var <- ifelse(byvar == "state", "State and Locality",
-                      ifelse(byvar == "svi_cate", "Overall Social Vulnerability", "Urbanicity"))
+                      ifelse(byvar == "svi_cate", "Overall Social Vulnerability",
+                             ifelse(byvar == "urban_rural_code", "Urbanicity", "Urbanicity & Social Vulnerability")))
   if(!is.null(panel_letter)) panel_letter <- paste0(panel_letter, " ")
-  title <- paste0(panel_letter, "Age-Adjusted Years of Potential Life Lost Rate\nby ",
-                    title_var, " (Per 100,000 Population)")
+  title <- paste0(panel_letter, "Age-Adjusted Years of Potential Life Lost Rate by ",
+                    title_var, "\n(Per 100,000 Population)")
 
   hjust = -0.3
   vjust = 0.5
@@ -76,9 +77,9 @@ plot_age_adjusted_ypll <- function(dt, byvar, year_rle = NA,
 #' @title Plot proportion of total YPLL attributable to each age group
 #' @import data.table
 #' @export
-plot_prop_ypll_by_age <- function(dt, byvar, year_rle = NA,
-                                  usa_ypll_ls = NULL,
-                                  panel_letter = NULL,
+plot_prop_ypll_by_age <- function(dt, byvar,
+                                  n_age_breaks = 7, # c(7, 4)
+                                  year_rle = NA, usa_ypll_ls = NULL, panel_letter = NULL,
                                   axis.text.y.size = 8) {
   if (is.null(usa_ypll_ls)) {
     usa_ypll_ls <- calculate_usa_ypll(dt, year_rle = year_rle)
@@ -115,29 +116,49 @@ plot_prop_ypll_by_age <- function(dt, byvar, year_rle = NA,
   var_order <- c("USA average", var_order[!var_order %in% "USA average"])
 
   all_prop[, paste0(byvar) := factor(eval(parse(text = paste0(byvar))), levels = var_order)]
-  all_prop <- all_prop[order(eval(parse(text = paste0(byvar))), age_group)]
+
+  if (n_age_breaks == 4) {
+    new_age_key <- c("18-39", "18-39", "40-64", "40-64", "65-84", "65-84", "85+")
+    names(new_age_key) <- set_age_breaks()$labels
+    all_prop[, age_group_plot := recode_factor(age_group, !!!new_age_key)]
+  } else {
+    all_prop[, age_group_plot := age_group]
+  }
+
+  all_prop <- all_prop[order(eval(parse(text = paste0(byvar))), age_group_plot)]
+  all_prop[, `:=` (prop_ypll_plot = sum(prop_ypll),
+                   ypll = sum(ypll)), by = c(byvar, "age_group_plot")]
   all_prop[, geo_level := ifelse(eval(parse(text = paste0(byvar))) == "USA average", "national", byvar)]
-  age_order <- rev(levels(all_prop$age_group))
-  all_prop[, age_group := factor(age_group, levels = age_order)]
-  all_prop[, text := ifelse(eval(parse(text = paste0(byvar))) == "USA average" & prop_ypll >= 0.05, prop_ypll, NA)]
+  age_order <- rev(levels(all_prop$age_group_plot))
+  all_prop[, age_group_plot := factor(age_group_plot, levels = age_order)]
+  all_prop[, text := ifelse(eval(parse(text = paste0(byvar))) == "USA average", prop_ypll_plot, NA)]
   all_prop <- all_prop[!is.na(eval(parse(text = paste0(byvar))))]
 
   title_var <- ifelse(byvar == "state", "State and Locality",
-                      ifelse(byvar == "svi_cate", "Overall Social Vulnerability", "Urbanicity"))
+                      ifelse(byvar == "svi_cate", "Overall Social Vulnerability",
+                             ifelse(byvar == "urban_rural_code", "Urbanicity", "Urbanicity & Social Vulnerability")))
   if(!is.null(panel_letter)) panel_letter <- paste0(panel_letter, " ")
-  title <- paste0(panel_letter, "Proportion of Years of Potential Life Lost\nby Age Group")
+  title <- paste0(panel_letter, title_var, ":\nProportion of Years of Potential Life Lost\nby Age Group")
 
-  g_out <- ggplot(data = all_prop) +
-    geom_bar(aes(x = .data[[byvar]], y = prop_ypll, fill = age_group),
+  tmp_cols <- c("age_group_plot", "geo_level", "text", byvar, "ypll", "total_ypll", "prop_ypll_plot")
+  uniq_all_prop <- unique(all_prop[, ..tmp_cols])
+  age_color <- levels(uniq_all_prop$age_group_plot)[1:2]
+  uniq_all_prop[, age_text_color := ifelse(age_group_plot %in% age_color & geo_level == "national", "black", "white")]
+  setcolorder(uniq_all_prop, c(byvar, "geo_level", "age_group_plot"))
+
+  g_out <- ggplot(data = uniq_all_prop) +
+    geom_bar(aes(x = .data[[byvar]], y = prop_ypll_plot, fill = age_group_plot),
              color = "gray70", size = 0.1, position = "stack", stat="identity") +
-    geom_text(aes(x = .data[[byvar]], y = prop_ypll, label = text),
-              position = position_stack(vjust = 0.5), size = 3, color = "white") +
+    geom_text(aes(x = .data[[byvar]], y = prop_ypll_plot, label = text, color = age_text_color),
+              position = position_stack(vjust = 0.5), size = 3) +
     facet_grid(geo_level~., scales = "free", space="free") +
     ggtitle(title) +
     ylab("Proportion of years of potential life lost") +
     coord_flip() +
-    scale_fill_viridis(begin = 0, end = 1,
+    scale_color_manual(values = c("white", "black")) +
+    scale_fill_viridis(begin = 0.1, end = 0.9,
                        discrete = T, option = "D", alpha = 0.9) +
+    guides(colour = FALSE) +
     theme_bw() +
     theme(plot.title = element_text(size = 14, hjust = 0.5, face = "bold"),
           panel.border = element_blank(),
@@ -152,7 +173,7 @@ plot_prop_ypll_by_age <- function(dt, byvar, year_rle = NA,
           legend.title = element_blank(),
           legend.text = element_text(size = 8),
           legend.position = "right")
-  return(list(g_out = g_out, plot_data = all_prop))
+  return(list(g_out = g_out, plot_data = uniq_all_prop))
 }
 
 #' @title Plot ratio
@@ -185,9 +206,10 @@ plot_ratio_ypll_to_covid <- function(dt, byvar, year_rle = NA,
   ratio_ypll_death <- ratio_ypll_death[!is.na(eval(parse(text = paste0(byvar))))]
 
   title_var <- ifelse(byvar == "state", "State and Locality",
-                      ifelse(byvar == "svi_cate", "Overall Social Vulnerability", "Urbanicity"))
+                      ifelse(byvar == "svi_cate", "Overall Social Vulnerability",
+                             ifelse(byvar == "urban_rural_code", "Urbanicity", "Urbanicity & Social Vulnerability")))
   if(!is.null(panel_letter)) panel_letter <- paste0(panel_letter, " ")
-  title <- paste0(panel_letter, "Ratio of Years of Potential\nLife Lost to COVID-19 deaths")
+  title <- paste0(panel_letter, title_var, ":\nRatio of Years of Potential Life Lost\nto COVID-19 deaths")
 
   g_out <- ggplot(data = ratio_ypll_death) +
     geom_vline(xintercept = 1, color = "gray40", size = 0.3) +
