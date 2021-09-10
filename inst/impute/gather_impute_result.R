@@ -13,6 +13,42 @@ library(loo)
 
 i <- 8 # there are models 1, 2, 3 (4 and 5 are deleted)
 
+fit_hurdle <- readRDS(paste0("inst/impute/results/fit_hurdle_agg", i,".RDS"))
+ix <- c(1:nrow(covid19d_cty))
+ll <- extract_log_lik(fit_hurdle, "log_lik")
+rm(fit_hurdle)
+ll <- ll[, ix[!ix %in% impute_sample$ix_miss]]
+
+loo_1 <- loo(ll, cores = 4)
+# print(loo_1)
+saveRDS(loo_1, paste0("inst/impute/results/loo", i,".RDS"))
+
+rm(list = ls())
+
+loo_out <- readRDS(paste0("inst/impute/results/loo", i,".RDS"))
+print(loo_out)
+
+ix_outlier <- which(loo_out$diagnostics$pareto_k > 0.7)
+
+ix <- c(1:nrow(covid19d_cty))
+ix_miss <- impute_sample$ix_miss
+ix_nonmiss <- ix[!ix %in% ix_miss]
+ix_outlier_o <- ix_nonmiss[ix_outlier]
+
+outlier_dt <- covid19d_cty[ix_outlier_o,
+                           .(fips, county_name, state, quarter, age_group, urban_rural_code, pop_size, covid_19_deaths)]
+table(outlier_dt$age_group)
+table(outlier_dt$urban_rural_code)
+table(outlier_dt$quarter)
+table(outlier_dt$quarter, outlier_dt$urban_rural_code)
+
+write.csv(outlier_dt, paste0("inst/impute/results/outlier from loo ", i,".csv"), row.names = F)
+
+
+rm(list = ls())
+
+i <- 8 # there are models 1, 2, 3 (4 and 5 are deleted)
+
 if (i %in% c(1:2, 6)) {
   warmup <- 500 + 1
 }
@@ -22,6 +58,7 @@ if (i %in% c(3:5, 7:14)) {
 }
 
 fit_hurdle <- readRDS(paste0("inst/impute/results/fit_hurdle_agg", i,".RDS"))
+
 
 g_stan_dig <- stan_diag(fit_hurdle)
 ggarrange(g_stan_dig[[1]], g_stan_dig[[2]], g_stan_dig[[3]], nrow = 3)
@@ -51,11 +88,9 @@ N <- dim(fit_summary)[[1]]
 iter <- dim(rstan::extract(fit_hurdle)[[1]])[[1]]
 pct_neff_ratio <- sum(fit_summary[,5] / iter < 0.001, na.rm = T)
 
-extract_log_lik(fit_hurdle, "log_lik")
-
 diag_stats <- data.frame(diag_stats = c("Max Rhat", "Pct Ratio of N Eff to Sample Size <0.001"),
-                         value = c(max_R_hat, neff_ratio))
-
+                         value = c(max_R_hat, pct_neff_ratio))
+saveRDS(diag_stats, paste0("inst/impute/results/diag_stats", i,".RDS"))
 
 
 #### Sample data
@@ -85,7 +120,7 @@ saveRDS(list(ix_miss = ix_miss,
 # Calculate 95% credible intervals for the proportion of counties with 1-9 COVID-19 deaths
 data(covid19d_cty)
 covid19d_cty[, y := copy(covid_19_deaths)]
-covid19d_cty[, suppress := ifelse(is.na(covid_19_deaths), "suppressed", "non-suppressed")]
+covid19d_cty[, suppress := ifelse(is.na(covid_19_deaths), "suppressed", "unsuppressed")]
 covid19d_cty[, y_new := copy(y)]
 
 covid19deaths_dist <- mclapply(c(1:nrow(ymis_draws)), function(x) {
@@ -98,7 +133,7 @@ covid19deaths_dist <- mclapply(c(1:nrow(ymis_draws)), function(x) {
 
   out <- covid19d_cty[, list(N = .N), by = .(y_cate, quarter)]
   out[, pct := N / sum(N), by = .(quarter)]
-  out[, suppress := ifelse(y_cate %in% paste0(c(1:9)), "suppressed", "non-suppressed")]
+  out[, suppress := ifelse(y_cate %in% paste0(c(1:9)), "suppressed", "unsuppressed")]
   out[order(y_cate, quarter)]
 }, mc.cores = 6)
 
@@ -107,7 +142,7 @@ covid19deaths_sum <- covid19deaths_dist[, list(mean_pct = mean(pct),
                                                lb = quantile(pct, prob = 0.025),
                                                ub = quantile(pct, prob = 0.975)),
                                         by = .(y_cate, quarter)]
-covid19deaths_sum[, suppress := ifelse(y_cate %in% paste0(c(1:9)), "imputed", "non-suppressed")]
+covid19deaths_sum[, suppress := ifelse(y_cate %in% paste0(c(1:9)), "imputed", "unsuppressed")]
 
 g1 <- ggplot(data = covid19deaths_sum) +
   geom_bar(aes(x = y_cate, y = mean_pct, fill = suppress),
@@ -165,7 +200,7 @@ covid19deaths_dist <- mclapply(c(1:nrow(ymis_draws)), function(x) {
 
   out <- covid19d_cty[, list(N = .N), by = .(y_cate, age_group, quarter)]
   out[, pct := N / sum(N), by = .(age_group, quarter)]
-  out[, suppress := ifelse(y_cate %in% paste0(c(1:9)), "suppressed", "non-suppressed")]
+  out[, suppress := ifelse(y_cate %in% paste0(c(1:9)), "suppressed", "unsuppressed")]
   out[order(y_cate, age_group)]
 }, mc.cores = 6)
 
@@ -174,7 +209,7 @@ covid19deaths_sum <- covid19deaths_dist[, list(mean_pct = mean(pct),
                                                lb = quantile(pct, prob = 0.025),
                                                ub = quantile(pct, prob = 0.975)),
                                         by = .(y_cate, age_group, quarter)]
-covid19deaths_sum[, suppress := ifelse(y_cate %in% paste0(c(1:9)), "imputed", "non-suppressed")]
+covid19deaths_sum[, suppress := ifelse(y_cate %in% paste0(c(1:9)), "imputed", "unsuppressed")]
 covid19deaths_sum[, `:=` (quarter = paste0("Q", quarter),
                           age_group = paste0("Age", age_group))]
 
@@ -215,7 +250,7 @@ covid19deaths_dist <- mclapply(c(1:nrow(ymis_draws)), function(x) {
 
   out <- covid19d_cty[, list(N = .N), by = .(y_cate, urban_rural_code, age_group, quarter)]
   out[, pct := N / sum(N), by = .(urban_rural_code, age_group, quarter)]
-  out[, suppress := ifelse(y_cate %in% paste0(c(1:9)), "suppressed", "non-suppressed")]
+  out[, suppress := ifelse(y_cate %in% paste0(c(1:9)), "suppressed", "unsuppressed")]
   out[order(y_cate, urban_rural_code)]
 }, mc.cores = 6)
 
@@ -224,7 +259,7 @@ covid19deaths_sum <- covid19deaths_dist[, list(mean_pct = mean(pct),
                                                lb = quantile(pct, prob = 0.025),
                                                ub = quantile(pct, prob = 0.975)),
                                         by = .(y_cate, urban_rural_code, age_group, quarter)]
-covid19deaths_sum[, suppress := ifelse(y_cate %in% paste0(c(1:9)), "imputed", "non-suppressed")]
+covid19deaths_sum[, suppress := ifelse(y_cate %in% paste0(c(1:9)), "imputed", "unsuppressed")]
 covid19deaths_sum[, `:=` (quarter = paste0("Q", quarter),
                           age_group = paste0("Age", age_group))]
 
@@ -297,7 +332,7 @@ master_dt <- data.table(expand.grid(y_cate = paste0(c(0:19, "20+")),
                                     quarter = c(1:4),
                                     age_group = unique(covid19d_cty$age_group)))
 
-covid19d_cty[, suppress := ifelse(is.na(covid_19_deaths), "suppressed", "non-suppressed")]
+covid19d_cty[, suppress := ifelse(is.na(covid_19_deaths), "suppressed", "unsuppressed")]
 covid19d_cty[, y_new := copy(y)]
 covid19d_cty[, y_cate := as.character(y_new)]
 covid19d_cty[, y_cate := ifelse(y_new >= 20, "20+", y_cate)]
@@ -312,7 +347,7 @@ master_dt <- merge(master_dt, sum_dist, by = c("y_cate", "quarter", "age_group")
 # master_dt$pct[is.na(master_dt$pct)] <- 0
 master_dt[, `:=` (type = "data", N = NULL)]
 
-covid19deaths_dist <- mclapply(c(1:nrow(ymis_draws)), function(x) {
+covid19deaths_dist <- mclapply(c(1:nrow(ysim_draws)), function(x) {
   tmp_y <- ysim_draws[x, ]
   covid19d_cty[, y_sim := tmp_y]
 

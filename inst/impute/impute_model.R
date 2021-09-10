@@ -83,7 +83,7 @@ if (resnum == 7) {
   iters <- 7000
   warmup <- 1000
 }
-if (resnum == 8) {
+if (resnum %in% c(8, 15)) {
   X <- model.matrix( ~ quarter * age_group + quarter * urban_rural_code + age_group * urban_rural_code + l_pop_size, data = covid19d_cty)
   X_hu <- model.matrix( ~ quarter * age_group + quarter * urban_rural_code + urban_rural_code, data = covid19d_cty)
   sd_vec <- ifelse(mort2020$covid_19_deaths < 5, 1, mort2020$covid_19_deaths * 0.2)
@@ -191,10 +191,30 @@ if (resnum %in% c(6, 7, 8, 9, 12, 13, 14)) {
   )
   print(Sys.time() - begin_time)
 
-} else {
+} else if (resnum %in% c(1, 2, 3, 4, 5, 10, 11)) {
   begin_time <- Sys.time()
   fit_hurdle <- stan(
     file = "stan/impute_hurdle_agg.stan",  # Stan program
+    data = data_ls,         # named list of data
+    chains = 3,             # number of Markov chains
+    warmup = warmup,           # number of warmup iterations per chain
+    iter = iters,            # total number of iterations per chain
+    cores = 3,              # number of cores (could use one per chain)
+    refresh = 10,
+    pars = c("bQ", "shape", "b_hu", "Ymi", "y_sim", "log_lik"),
+    seed = 20210519
+  )
+  print(Sys.time() - begin_time)
+} else {
+  data_ls$nat_d <- us_mort2020$covid_19_deaths
+  data_ls$sd_nat_d <- sd_vec_nat
+  data_ls$n_nat_d <- nrow(us_mort2020)
+  data_ls$n_gp_nat <- nrow(us_mort2020)
+  data_ls$gp_nat_ix <- covid19d_cty$age_num
+
+  begin_time <- Sys.time()
+  fit_hurdle <- stan(
+    file = "stan/impute_hurdle_agg_nat_prior.stan",  # Stan program
     data = data_ls,         # named list of data
     chains = 3,             # number of Markov chains
     warmup = warmup,           # number of warmup iterations per chain

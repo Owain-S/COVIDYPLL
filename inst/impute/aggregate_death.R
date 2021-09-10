@@ -13,9 +13,10 @@ library(maptools)
 library(broom)
 library(mapproj)
 library(ggthemes)
+library(raster)
 
 # models 2, 3, 7, 8, 9, 11, 12, 14
-i <- 2
+i <- 8
 
 sum_est <- readRDS(paste0("inst/impute/results/sum_estimates_hurdle_agg", i,".RDS"))
 
@@ -301,11 +302,11 @@ sum_dt <- mclapply(c(1:dim(ymis)[1]), function(x) {
 
   tmp_dt <- tmp_dt[, list(covid_19_deaths = sum(covid_19_deaths),
                           pop_size = sum(pop_size),
-                          avg_le2020 = mean(avg_le2020),
+                          avg_le = mean(avg_le2020),
                           std_pop_wgt = mean(std_pop_wgt)),
                    by = c("fips", "age_group")]
 
-  agg_dt <- calculate_ypll2(tmp_dt, byvar = "fips")
+  agg_dt <- calculate_ypll(tmp_dt, byvar = "fips")
 
   agg_dt
 }, mc.cores = 6)
