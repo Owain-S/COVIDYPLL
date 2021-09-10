@@ -7,6 +7,7 @@
 plot_prop_ypll_by_age(
   dt,
   byvar,
+  n_age_breaks = 7,
   year_rle = NA,
   usa_ypll_ls = NULL,
   panel_letter = NULL,
