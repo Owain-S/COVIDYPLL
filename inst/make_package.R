@@ -5,8 +5,7 @@ library(data.table)
 library(parallel)
 
 std_pop_wgt <- dl_us_standard_population()
-# le <- get_provisional_le() #  data calculated based on https://www.cdc.gov/nchs/data/vsrr/VSRR10-508.pdf
-le <- calculate_provisional_le() # life expectancy in 2018 and 2020
+le <- calculate_provisional_le() # life expectancy in 2017, 2018, and 2020
 county_pop <- get_county_pop_size()
 covid19d_cty <- get_covid_death_cty()
 mort2020 <- get_mort_nation_state()
