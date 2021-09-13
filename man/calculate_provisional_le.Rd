@@ -2,10 +2,10 @@
 % Please edit documentation in R/data_prep.R
 \name{calculate_provisional_le}
 \alias{calculate_provisional_le}
-\title{Get provisional life expectancy estimates in 2020}
+\title{Get provisional life expectancy estimates in 2017, 2018, and 2020}
 \usage{
 calculate_provisional_le()
 }
 \description{
-Get provisional life expectancy estimates in 2020
+Get provisional life expectancy estimates in 2017, 2018, and 2020
 }

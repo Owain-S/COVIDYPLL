@@ -8,6 +8,9 @@ dl_us_standard_population(
   url = "https://seer.cancer.gov/stdpopulations/stdpop.singleagesthru99.txt"
 )
 }
+\arguments{
+\item{url}{A string of the url linking to the data of the 2000 US standard population.}
+}
 \description{
 Get 2000 US standard population
 }

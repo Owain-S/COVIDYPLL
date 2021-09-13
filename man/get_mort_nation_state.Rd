@@ -2,7 +2,7 @@
 % Please edit documentation in R/data_prep.R
 \name{get_mort_nation_state}
 \alias{get_mort_nation_state}
-\title{Provisional national and state-level COVID-19 and total deaths}
+\title{Provisional national and state-level COVID-19 and total deaths in 2020 and 2021}
 \usage{
 get_mort_nation_state(
   select_sex = "All Sexes",
@@ -11,5 +11,5 @@ get_mort_nation_state(
 )
 }
 \description{
-Provisional national and state-level COVID-19 and total deaths
+Provisional national and state-level COVID-19 and total deaths in 2020 and 2021
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/util.R
 \name{calculate_ypll}
 \alias{calculate_ypll}
-\title{Calculate YPLL}
+\title{Calculate Years of Potential Life Lost}
 \usage{
 calculate_ypll(
   dt,
@@ -12,6 +12,17 @@ calculate_ypll(
   export_data_by_simno = FALSE
 )
 }
+\arguments{
+\item{dt}{A \code{data.table} include the following columns: \code{covid_19_deaths}, \code{pop_size}, \code{std_pop_wgt}, \code{avg_leXXXX} and other variables that could be used for summary statistics}
+
+\item{byvar}{The variable used for aggregating deaths, YPLL, and population size}
+
+\item{age_adjusted_output}{Whether to get age adjusted death rate or YPLL rate}
+
+\item{year_rle}{Specify the year of remaining life expectancy data. The default is the average remaining life expectancy between 2017 and 2018.}
+
+\item{export_data_by_simno}{Whether to export simulation data (1,000 datasets).}
+}
 \description{
-Calculate YPLL
+Calculate Years of Potential Life Lost
 }

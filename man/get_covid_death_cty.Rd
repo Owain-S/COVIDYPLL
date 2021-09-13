@@ -2,10 +2,10 @@
 % Please edit documentation in R/data_prep.R
 \name{get_covid_death_cty}
 \alias{get_covid_death_cty}
-\title{Provisional county-level COVID-19 death by quarter in 2020}
+\title{Provisional county-level COVID-19 deaths by quarter in 2020}
 \usage{
 get_covid_death_cty()
 }
 \description{
-Provisional county-level COVID-19 death by quarter in 2020
+Provisional county-level COVID-19 deaths by quarter in 2020
 }

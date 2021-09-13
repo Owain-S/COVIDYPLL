@@ -2,10 +2,10 @@
 % Please edit documentation in R/util.R
 \name{set_colors}
 \alias{set_colors}
-\title{colors}
+\title{Common colors}
 \usage{
 set_colors(n = 2)
 }
 \description{
-colors
+Common colors
 }

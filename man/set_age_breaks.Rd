@@ -15,6 +15,8 @@ set_age_breaks(
 The default is \code{c(18, 30, 40, 50, 65, 75, 85)}}
 
 \item{max_age}{The maximum age allowed (numeric). The default is infinite (\code{Inf}).}
+
+\item{return_cut}{Whehter to return the cut labels}
 }
 \value{
 The output of this function is a \code{data.table} with the lower and upper bounds of the age break,

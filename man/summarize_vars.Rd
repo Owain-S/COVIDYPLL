@@ -2,10 +2,13 @@
 % Please edit documentation in R/util.R
 \name{summarize_vars}
 \alias{summarize_vars}
-\title{summarize}
+\title{Summarize variables to get mean or the 95\% intervals}
 \usage{
 summarize_vars(x)
 }
+\arguments{
+\item{x}{A vector of values}
+}
 \description{
-summarize
+Summarize variables to get mean or the 95\% intervals
 }
