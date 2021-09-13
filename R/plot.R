@@ -3,7 +3,7 @@
 #' @export
 calculate_usa_ypll <- function(dt, year_rle = NA) {
   usa_ypll_by_age <- calculate_ypll(dt, age_adjusted_output = F)
-  usa_ypll <- calculate_ypll(death_samp, age_adjusted_output = T, year_rle = year_rle)
+  usa_ypll <- calculate_ypll(dt, age_adjusted_output = T, year_rle = year_rle)
   return(list(usa_ypll = usa_ypll, usa_ypll_by_age = usa_ypll_by_age))
 }
 

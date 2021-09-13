@@ -1,4 +1,5 @@
-#' Get 2000 US standard population
+#' @title Get 2000 US standard population
+#' @param url A string of the url linking to the data of the 2000 US standard population.
 #' @import data.table
 #' @export
 dl_us_standard_population <- function(url = "https://seer.cancer.gov/stdpopulations/stdpop.singleagesthru99.txt") {
@@ -30,49 +31,6 @@ dl_us_standard_population <- function(url = "https://seer.cancer.gov/stdpopulati
   std_pop_wgt[, std_pop_wgt := std_pop_million / sum(std_pop_million)]
   std_pop_wgt[, age_group := factor(age_group, levels = set_age_breaks()$labels)]
   return(std_pop_wgt)
-}
-
-#' Get provisional life expectancy estimates in 2020
-#' @import data.table
-#' @export
-get_provisional_le <- function(url = "https://www.cdc.gov/nchs/data/vsrr/VSRR10-508.pdf") {
-  temp_dl <- pdftools::pdf_text(url)[2]
-  temp_dl <- strsplit(temp_dl, "\n")[[1]][9:27]
-  temp_dl <- lapply(temp_dl, function(x) {
-    strsplit(gsub("\\s+", ",", x), ",")[[1]]
-  })
-  temp_dl <- do.call(rbind, temp_dl)
-  temp_dl <- data.table(temp_dl[, c(2:ncol(temp_dl))])
-  added_cols <- unlist(lapply(c("All", "Hispanic", "NHW", "NHB"), function(x)
-    paste0(x, "_", c("total", "male", "female"))))
-  setnames(temp_dl, c("age", added_cols))
-
-  le2020 <- melt(temp_dl, id.vars = "age", value.name = "avg_le")
-  tmp_cols <- c("age", "avg_le")
-  le2020[, (tmp_cols) := lapply(.SD, as.numeric), .SDcols = tmp_cols]
-
-  tmp_str <- do.call(rbind, strsplit(as.character(le2020$variable), "_"))
-  le2020[, `:=` (raceth = factor(tmp_str[, 1], levels = c("All", "NHW", "NHB", "Hispanic")),
-                 sex = factor(tmp_str[, 2], levels = c("total", "male", "female")))]
-  setcolorder(le2020, c("age", "raceth", "sex", "avg_le"))
-  le2020[, variable := NULL]
-
-  age_breaks <- set_age_breaks()
-
-  le2020[, ub := shift(age, type = "lead"), by = .(raceth, sex)]
-  le2020$ub[is.na(le2020$ub)] <- ifelse(is.infinite(max(age_breaks$breaks)), 100, max(age_breaks$breaks))
-  le2020[, expand := ub - age]
-  le2020 <- le2020[rep(c(1:.N), expand)]
-  le2020 <- le2020[order(raceth, sex, age)]
-  le2020[, add := c(0:(.N - 1)), by = .(raceth, sex, age)]
-  le2020[, age2 := age + add]
-
-  le2020[, age_group := cut(age2, breaks = age_breaks$breaks, labels = age_breaks$labels, right = F)]
-  le2020 <- le2020[!is.na(age_group)]
-  le2020 <- le2020[, list(avg_le2020 = mean(avg_le)), by = .(raceth, sex, age_group)]
-  le2020[, age_group := factor(age_group, levels = set_age_breaks()$labels)]
-
-  return(le2020)
 }
 
 #' @title County level population size
@@ -168,7 +126,7 @@ standardize_mort_data <- function(dt, state_level = FALSE) {
   return(dt)
 }
 
-#' @title Provisional county-level COVID-19 death by quarter in 2020
+#' @title Provisional county-level COVID-19 deaths by quarter in 2020
 #' @import data.table
 #' @export
 get_covid_death_cty <- function() {
@@ -182,7 +140,7 @@ get_covid_death_cty <- function() {
   return(tab)
 }
 
-#' @title Provisional national and state-level COVID-19 and total deaths
+#' @title Provisional national and state-level COVID-19 and total deaths in 2020 and 2021
 #' @import data.table
 #' @export
 get_mort_nation_state <- function(select_sex = "All Sexes", select_year = 2020,
@@ -279,7 +237,7 @@ get_postcensal_pop <- function() {
   return(tab)
 }
 
-#' Get provisional life expectancy estimates in 2020
+#' @title Get provisional life expectancy estimates in 2017, 2018, and 2020
 #' @import data.table
 #' @export
 calculate_provisional_le <- function() {

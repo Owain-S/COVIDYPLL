@@ -1,4 +1,4 @@
-#' @title colors
+#' @title Common colors
 #' @export
 set_colors <- function(n = 2) {
   color_vec <- c("deepskyblue", "yellowgreen", "darkgoldenrod1", "tomato", "plum3")
@@ -16,6 +16,7 @@ get_county_info <- function() {
 #' @param age_cut A vector of the numeric lower bounds of all age breaks.
 #'        The default is `c(18, 30, 40, 50, 65, 75, 85)`
 #' @param max_age The maximum age allowed (numeric). The default is infinite (`Inf`).
+#' @param return_cut Whehter to return the cut labels
 #' @return The output of this function is a `data.table` with the lower and upper bounds of the age break,
 #'         and a column of string age breaks.
 #' @import data.table
@@ -107,7 +108,8 @@ calculate_ypll_old <- function(dt) {
   dt
 }
 
-#' @title summarize
+#' @title Summarize variables to get mean or the 95% intervals
+#' @param x A vector of values
 #' @export
 summarize_vars <- function(x) {
   list(mean = mean(x, na.rm = T),
@@ -115,7 +117,12 @@ summarize_vars <- function(x) {
        ub = quantile(x, prob = 0.975, na.rm = T))
 }
 
-#' @title Calculate YPLL
+#' @title Calculate Years of Potential Life Lost
+#' @param dt A `data.table` include the following columns: `covid_19_deaths`, `pop_size`, `std_pop_wgt`, `avg_leXXXX` and other variables that could be used for summary statistics
+#' @param byvar The variable used for aggregating deaths, YPLL, and population size
+#' @param age_adjusted_output Whether to get age adjusted death rate or YPLL rate
+#' @param year_rle Specify the year of remaining life expectancy data. The default is the average remaining life expectancy between 2017 and 2018.
+#' @param export_data_by_simno Whether to export simulation data (1,000 datasets).
 #' @import data.table dplyr
 #' @export
 calculate_ypll <- function(dt,
@@ -162,9 +169,11 @@ calculate_ypll <- function(dt,
                           std_pop_wgt = mean(std_pop_wgt)),
                    by = c(by_vars)]
 
-  sum_dt[, `:=` (covid19_death_rate = (covid_19_deaths / pop_size) * 100000,
+  sum_dt[, `:=` (covid19_death_rate = ((covid_19_deaths / ((pop_size > 0) * pop_size +
+                                                             (pop_size == 0) * 1)) * 100000),
                  tot_ypll = covid_19_deaths * rle,
-                 ypll_rate = ((covid_19_deaths / pop_size) * 100000) * rle)]
+                 ypll_rate = ((covid_19_deaths / ((pop_size > 0) * pop_size +
+                                                    (pop_size == 0) * 1)) * 100000)  * rle)]
   sum_dt[, `:=` (covid19_death_rate_agewt = covid19_death_rate * std_pop_wgt,
                  ypll_rate_agewt = ypll_rate * std_pop_wgt)]
 
@@ -199,4 +208,3 @@ calculate_ypll <- function(dt,
     return(agg_sum)
   }
 }
-
