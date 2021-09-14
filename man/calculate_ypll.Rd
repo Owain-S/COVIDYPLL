@@ -2,7 +2,7 @@
 % Please edit documentation in R/util.R
 \name{calculate_ypll}
 \alias{calculate_ypll}
-\title{Calculate Years of Potential Life Lost}
+\title{Calculate and aggregate COVID-19 death (rate) and years of potential life lost (rate) by county characteristics}
 \usage{
 calculate_ypll(
   dt,
@@ -23,6 +23,20 @@ calculate_ypll(
 
 \item{export_data_by_simno}{Whether to export simulation data (1,000 datasets).}
 }
+\value{
+If \code{export_data_by_simno} is set to \code{FALSE}, this function returns a \code{data.table}.
+If \code{export_data_by_simno} is set to \code{TRUE}, this function returns a list of two \code{data.table}.
+The first \code{data.table} named \code{agg_sum} summarizes mean and interval estimates of
+each statistics of interest. The second \code{data.table} named \code{sim_dt} provides all statistics
+calculated for each of the 1,000 datasets based on the 1,000 posterior samples. In general,
+the \code{data.table} returned includes the total COVID-19 deaths (\code{covid_19_deaths}),
+COVID-19 death rate (\code{covid19_death_rate}), YPLL rate (\code{ypll_rate}),
+and total YPLL (\code{tot_ypll}). If the input argument, \code{age_adjusted_output}, is set to
+\code{TRUE}, the \code{data.table} returned includes columns \code{covid19_death_rate_aa} and \code{ypll_rate_aa},
+which are age adjusted (\verb{_aa}) rates. If the input argument, \code{age_adjusted_output}, is set to
+\code{FALSE}, the \code{data.table} returned includes columns \code{covid19_death_rate_agewt} and
+\code{ypll_rate_agewt}, which are age weights (\verb{_agewt}) that can be used for further calculation.
+}
 \description{
-Calculate Years of Potential Life Lost
+Calculate and aggregate COVID-19 death (rate) and years of potential life lost (rate) by county characteristics
 }
