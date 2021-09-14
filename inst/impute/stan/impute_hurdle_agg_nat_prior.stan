@@ -95,6 +95,7 @@ data {
   vector[n_nat_d] sd_nat_d;
   int<lower=1> n_gp_nat;
   int<lower=1> gp_nat_ix[N];
+  real miss_sd;
 }
 transformed data {
   int Kc = K - 1;
@@ -195,7 +196,7 @@ model {
     target += hurdle_gamma_logit_lpdf(Yl[n] | shape, mu[n], hu[n]);
   }
   // priors including constants
-  target += normal_lpdf(Ymi | 1, 5);
+  target += normal_lpdf(Ymi | 1, miss_sd);
   target += normal_lpdf(bQ | 0, 10);
   target += normal_lpdf(Intercept | 0, 10);
   target += gamma_lpdf(shape | 0.01, 0.01);
