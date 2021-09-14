@@ -6,7 +6,9 @@
 
 * Provisional COVID-19 death data by age and state: Data from https://data.cdc.gov/NCHS/Provisional-COVID-19-Deaths-by-Sex-and-Age/9bhg-hcku, accessed on June 9, 2021
 
-* 2018 US life table: Data from https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Publications/NVSR/69-12/Table01.xlsx, accessed on June 11, 2021 
+* 2017 US life table: Data from https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Publications/NVSR/68_07/Table01.xlsx, accessed on August 24, 2021
+
+* 2018 US life table: Data from  https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Publications/NVSR/69-12/Table01.xlsx, accessed on June 11, 2021 
 
 * 2000 US standard population: Data from https://seer.cancer.gov/stdpopulations/stdpop.singleagesthru99.txt, accessed on May 11, 2021
 
