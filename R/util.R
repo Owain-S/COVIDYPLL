@@ -117,13 +117,26 @@ summarize_vars <- function(x) {
        ub = quantile(x, prob = 0.975, na.rm = T))
 }
 
-#' @title Calculate Years of Potential Life Lost
+#' @title Calculate and aggregate COVID-19 death (rate) and years of potential life lost (rate) by county characteristics
 #' @param dt A `data.table` include the following columns: `covid_19_deaths`, `pop_size`, `std_pop_wgt`, `avg_leXXXX` and other variables that could be used for summary statistics
 #' @param byvar The variable used for aggregating deaths, YPLL, and population size
 #' @param age_adjusted_output Whether to get age adjusted death rate or YPLL rate
 #' @param year_rle Specify the year of remaining life expectancy data. The default is the average remaining life expectancy between 2017 and 2018.
 #' @param export_data_by_simno Whether to export simulation data (1,000 datasets).
 #' @import data.table dplyr
+#' @return If `export_data_by_simno` is set to `FALSE`, this function returns a `data.table`.
+#'         If `export_data_by_simno` is set to `TRUE`, this function returns a list of two `data.table`.
+#'         The first `data.table` named `agg_sum` summarizes mean and interval estimates of
+#'         each statistics of interest. The second `data.table` named `sim_dt` provides all statistics
+#'         calculated for each of the 1,000 datasets based on the 1,000 posterior samples. In general,
+#'         the `data.table` returned includes the total COVID-19 deaths (`covid_19_deaths`),
+#'         COVID-19 death rate (`covid19_death_rate`), YPLL rate (`ypll_rate`),
+#'         and total YPLL (`tot_ypll`). If the input argument, `age_adjusted_output`, is set to
+#'         `TRUE`, the `data.table` returned includes columns `covid19_death_rate_aa` and `ypll_rate_aa`,
+#'         which are age adjusted (`_aa`) rates. If the input argument, `age_adjusted_output`, is set to
+#'         `FALSE`, the `data.table` returned includes columns `covid19_death_rate_agewt` and
+#'         `ypll_rate_agewt`, which are age weights (`_agewt`) that can be used for
+#'         further calculation.
 #' @export
 calculate_ypll <- function(dt,
                            byvar = NULL,
