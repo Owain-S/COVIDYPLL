@@ -32,7 +32,7 @@ covid19d_cty[, y := copy(covid_19_deaths)]
 
 ## Get state covid-19 deaths counts by age group
 us_mort2020 <- mort2020[state == "US", .(age_group, covid_19_deaths)]
-mort2020 <- mort2020[state != "US", .(state, age_group, covid_19_deaths, sd_covid19d)]
+mort2020 <- mort2020[state != "US", .(state, age_group, covid_19_deaths)] #, sd_covid19d)]
 mort2020 <- merge(mort2020, state_num, by = "state", all.x = T)
 mort2020[, age_num := as.numeric(age_group)]
 mort2020[, gp_ix := c(1:.N)]
@@ -83,7 +83,7 @@ if (resnum == 7) {
   iters <- 7000
   warmup <- 1000
 }
-if (resnum %in% c(8, 15, 16)) {
+if (resnum %in% c(8, 15, 16, 17, 18)) {
   X <- model.matrix( ~ quarter * age_group + quarter * urban_rural_code + age_group * urban_rural_code + l_pop_size, data = covid19d_cty)
   X_hu <- model.matrix( ~ quarter * age_group + quarter * urban_rural_code + urban_rural_code, data = covid19d_cty)
   sd_vec <- ifelse(mort2020$covid_19_deaths < 5, 1, mort2020$covid_19_deaths * 0.2)
@@ -239,7 +239,65 @@ if (resnum %in% 16) {
 
   begin_time <- Sys.time()
   fit_hurdle <- stan(
-    file = "stan/impute_hurdle_agg_nat_prior2.stan",  # Stan program
+    file = "stan/impute_hurdle_agg_nat_prior.stan",  # Stan program
+    data = data_ls,         # named list of data
+    chains = 3,             # number of Markov chains
+    warmup = warmup,           # number of warmup iterations per chain
+    iter = iters,            # total number of iterations per chain
+    cores = 3,              # number of cores (could use one per chain)
+    refresh = 10,
+    pars = c("bQ", "shape", "b_hu", "Ymi", "y_sim", "log_lik"),
+    seed = 20210519
+  )
+  print(Sys.time() - begin_time)
+}
+if (resnum %in% 17) {
+  data_ls$nat_d <- us_mort2020$covid_19_deaths
+  data_ls$sd_nat_d <- sd_vec_nat
+  data_ls$n_nat_d <- nrow(us_mort2020)
+  data_ls$n_gp_nat <- nrow(us_mort2020)
+  data_ls$gp_nat_ix <- covid19d_cty$age_num
+  data_ls$miss_sd1 <- 5.0
+  data_ls$miss_sd2 <- 10.0
+  data_ls$Nmi1 <- nrow(covid19d_cty[age_group %in% c("18-29", "30-39", "40-49")])
+  data_ls$Nmi2 <- nrow(covid19d_cty[age_group %in% c("50-64", "65-74", "75-84", "85+")])
+  data_ls$Jmi1 <- which(is.na(covid19d_cty$y & covid19d_cty$age_group %in% c("18-29", "30-39", "40-49")))
+  data_ls$Jmi2 <- which(is.na(covid19d_cty$y & covid19d_cty$age_group %in% c("50-64", "65-74", "75-84", "85+")))
+  data_ls$Nmi <- NULL
+  data_ls$Jmi <- NULL
+
+  begin_time <- Sys.time()
+  fit_hurdle <- stan(
+    file = "stan/impute_hurdle_agg_nat_prior_bifur.stan",  # Stan program
+    data = data_ls,         # named list of data
+    chains = 3,             # number of Markov chains
+    warmup = warmup,           # number of warmup iterations per chain
+    iter = iters,            # total number of iterations per chain
+    cores = 3,              # number of cores (could use one per chain)
+    refresh = 10,
+    pars = c("bQ", "shape", "b_hu", "Ymi", "y_sim", "log_lik"),
+    seed = 20210519
+  )
+  print(Sys.time() - begin_time)
+}
+if (resnum %in% 18) {
+  data_ls$nat_d <- us_mort2020$covid_19_deaths
+  data_ls$sd_nat_d <- sd_vec_nat
+  data_ls$n_nat_d <- nrow(us_mort2020)
+  data_ls$n_gp_nat <- nrow(us_mort2020)
+  data_ls$gp_nat_ix <- covid19d_cty$age_num
+  data_ls$miss_sd1 <- 5.0
+  data_ls$miss_sd2 <- 20.0
+  data_ls$Nmi1 <- nrow(covid19d_cty[age_group %in% c("18-29", "30-39", "40-49")])
+  data_ls$Nmi2 <- nrow(covid19d_cty[age_group %in% c("50-64", "65-74", "75-84", "85+")])
+  data_ls$Jmi1 <- which(is.na(covid19d_cty$y & covid19d_cty$age_group %in% c("18-29", "30-39", "40-49")))
+  data_ls$Jmi2 <- which(is.na(covid19d_cty$y & covid19d_cty$age_group %in% c("50-64", "65-74", "75-84", "85+")))
+  data_ls$Nmi <- NULL
+  data_ls$Jmi <- NULL
+
+  begin_time <- Sys.time()
+  fit_hurdle <- stan(
+    file = "stan/impute_hurdle_agg_nat_prior_bifur.stan",  # Stan program
     data = data_ls,         # named list of data
     chains = 3,             # number of Markov chains
     warmup = warmup,           # number of warmup iterations per chain

@@ -11,7 +11,7 @@ library(ggpubr)
 library(parallel)
 library(loo)
 
-i <- 8 # there are models 1, 2, 3 (4 and 5 are deleted)
+i <- 15 # there are models 1, 2, 3 (4 and 5 are deleted)
 
 fit_hurdle <- readRDS(paste0("inst/impute/results/fit_hurdle_agg", i,".RDS"))
 ix <- c(1:nrow(covid19d_cty))
@@ -24,6 +24,8 @@ loo_1 <- loo(ll, cores = 4)
 saveRDS(loo_1, paste0("inst/impute/results/loo", i,".RDS"))
 
 rm(list = ls())
+
+i <- 8 # there are models 1, 2, 3 (4 and 5 are deleted)
 
 loo_out <- readRDS(paste0("inst/impute/results/loo", i,".RDS"))
 print(loo_out)
@@ -47,13 +49,13 @@ write.csv(outlier_dt, paste0("inst/impute/results/outlier from loo ", i,".csv"),
 
 rm(list = ls())
 
-i <- 8 # there are models 1, 2, 3 (4 and 5 are deleted)
+i <- 15  # there are models 1, 2, 3 (4 and 5 are deleted)
 
 if (i %in% c(1:2, 6)) {
   warmup <- 500 + 1
 }
 
-if (i %in% c(3:5, 7:14)) {
+if (i %in% c(3:5, 7:15)) {
   warmup <- 1000 + 1
 }
 
@@ -90,7 +92,7 @@ pct_neff_ratio <- sum(fit_summary[,5] / iter < 0.001, na.rm = T)
 
 diag_stats <- data.frame(diag_stats = c("Max Rhat", "Pct Ratio of N Eff to Sample Size <0.001"),
                          value = c(max_R_hat, pct_neff_ratio))
-saveRDS(diag_stats, paste0("inst/impute/results/diag_stats", i,".RDS"))
+write.csv(diag_stats, paste0("inst/impute/results/diag_stats", i,".csv"), row.names = F)
 
 
 #### Sample data

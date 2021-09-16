@@ -15,8 +15,8 @@ library(mapproj)
 library(ggthemes)
 library(raster)
 
-# models 2, 3, 7, 8, 9, 11, 12, 14
-i <- 8
+# models 2, 3, 7, 8, 9, 11, 12, 14, 15
+i <- 15
 
 sum_est <- readRDS(paste0("inst/impute/results/sum_estimates_hurdle_agg", i,".RDS"))
 
@@ -294,6 +294,8 @@ death2020[, urban_rural_code := factor(urban_rural_code,
                                                   "Large central metro"))]
 
 county_state <- unique(death2020[, .(fips, county_name, state, urban_rural_code)])
+
+
 
 
 sum_dt <- mclapply(c(1:dim(ymis)[1]), function(x) {
