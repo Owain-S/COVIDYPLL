@@ -259,12 +259,13 @@ if (resnum %in% 17) {
   data_ls$gp_nat_ix <- covid19d_cty$age_num
   data_ls$miss_sd1 <- 5.0
   data_ls$miss_sd2 <- 10.0
-  data_ls$Nmi1 <- nrow(covid19d_cty[age_group %in% c("18-29", "30-39", "40-49")])
+  data_ls$Nmi1 <- nrow(covid19d_cty[is.na(y) & age_group %in% c("18-29", "30-39", "40-49")])
   data_ls$Nmi2 <- nrow(covid19d_cty[age_group %in% c("50-64", "65-74", "75-84", "85+")])
-  data_ls$Jmi1 <- which(is.na(covid19d_cty$y & covid19d_cty$age_group %in% c("18-29", "30-39", "40-49")))
-  data_ls$Jmi2 <- which(is.na(covid19d_cty$y & covid19d_cty$age_group %in% c("50-64", "65-74", "75-84", "85+")))
-  data_ls$Nmi <- NULL
-  data_ls$Jmi <- NULL
+  data_ls$Jmi1 <- which(is.na(covid19d_cty$y) & covid19d_cty$age_group %in% c("18-29", "30-39", "40-49"))
+  data_ls$Jmi2 <- which(is.na(covid19d_cty$y) & covid19d_cty$age_group %in% c("50-64", "65-74", "75-84", "85+"))
+  tmp_dt <- covid19d_cty[is.na(y)]
+  data_ls$Jmi_miss1 <- which(tmp_dt %in% c("18-29", "30-39", "40-49"))
+  data_ls$Jmi_miss2 <- which(tmp_dt %in% c("50-64", "65-74", "75-84", "85+"))
 
   begin_time <- Sys.time()
   fit_hurdle <- stan(
@@ -292,8 +293,9 @@ if (resnum %in% 18) {
   data_ls$Nmi2 <- nrow(covid19d_cty[age_group %in% c("50-64", "65-74", "75-84", "85+")])
   data_ls$Jmi1 <- which(is.na(covid19d_cty$y & covid19d_cty$age_group %in% c("18-29", "30-39", "40-49")))
   data_ls$Jmi2 <- which(is.na(covid19d_cty$y & covid19d_cty$age_group %in% c("50-64", "65-74", "75-84", "85+")))
-  data_ls$Nmi <- NULL
-  data_ls$Jmi <- NULL
+  tmp_dt <- covid19d_cty[is.na(y)]
+  data_ls$Jmi_miss1 <- which(tmp_dt %in% c("18-29", "30-39", "40-49"))
+  data_ls$Jmi_miss2 <- which(tmp_dt %in% c("50-64", "65-74", "75-84", "85+"))
 
   begin_time <- Sys.time()
   fit_hurdle <- stan(

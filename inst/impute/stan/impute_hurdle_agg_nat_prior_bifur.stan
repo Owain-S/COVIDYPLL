@@ -53,10 +53,13 @@ functions {
 data {
   int<lower=1> N;  // total number of observations
   vector[N] Y;  // response variable
+  int<lower=0> Nmi;   // number of all missings
   int<lower=0> Nmi1;  // number of missings age 18-49
   int<lower=0> Nmi2;  // number of missings age 50-85+
   int<lower=1> Jmi1[Nmi1];  // positions of missings age 18-49
   int<lower=1> Jmi2[Nmi2];  // positions of missings age 50-85+
+  int<lower=1> Jmi_miss1[Nmi1];  // positions among all missings age 18-49
+  int<lower=1> Jmi_miss2[Nmi2];  // positions among all missings age 50-85+
   int<lower=1> K;  // number of population-level effects
   matrix[N, K] X;  // population-level design matrix
   int<lower=1> K_hu;  // number of population-level effects
@@ -143,11 +146,14 @@ parameters {
   vector[N_4] z_4[M_4];  // standardized group-level effects
 }
 transformed parameters {
+  vector[Nmi] Ymi;
   // initialize linear predictor term
   vector[N] mu = Intercept + XQ * bQ;
   // initialize linear predictor term
   vector[N] hu = Intercept_hu + Xc_hu * b_hu;
 
+  Ymi[Jmi_miss1] = Ymi1;
+  Ymi[Jmi_miss2] = Ymi2;
   mu = Intercept + XQ * bQ;
   hu = Intercept_hu + Xc_hu * b_hu;
 
