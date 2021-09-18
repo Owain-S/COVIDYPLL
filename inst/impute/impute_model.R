@@ -102,7 +102,6 @@ if (resnum %in% 8) {
     seed = 20210519
   )
   print(Sys.time() - begin_time)
-
 }
 if (resnum %in% 15) {
   data_ls$miss_sd <- 5.0
