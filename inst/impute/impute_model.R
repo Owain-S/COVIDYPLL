@@ -40,100 +40,12 @@ covid19d_cty <- merge(covid19d_cty, mort2020[, .(state, age_group, gp_ix)],
                       by = c("state", "age_group"), all.x = T)
 covid19d_cty <- covid19d_cty[order(row_ix)]
 
-# library(MASS)
-# nbGLM <- glm.nb(covid_19_deaths ~ age_group + state, data=mort2020[state != "US"])
-# nbGLM$theta
-# > nbGLM$theta
-# [1] 16.78252
-
-if (resnum == 1) {
-  sd_vec <- ifelse(mort2020$covid_19_deaths < 10, 10, mort2020$covid_19_deaths * 0.2)
-  iters <- 4000
-  warmup <- 500
-}
-if (resnum == 2) {
-  sd_vec <- ifelse(mort2020$covid_19_deaths < 5, 1, mort2020$covid_19_deaths * 0.2)
-  iters <- 3000
-  warmup <- 500
-}
-if (resnum == 3) {
-  sd_vec <- ifelse(mort2020$covid_19_deaths < 7, 1, mort2020$covid_19_deaths * 0.15)
-  iters <- 7000
-  warmup <- 1000
-}
-if (resnum == 4) {
-  sd_vec <- ifelse(mort2020$covid_19_deaths < 1, 1, mort2020$sd_covid19d * 3)
-  iters <- 7000
-  warmup <- 1000
-}
-if (resnum == 5) {
-  sd_vec <- ifelse(mort2020$covid_19_deaths < 1, 1, mort2020$sd_covid19d * 2)
-  iters <- 8000
-  warmup <- 1000
-}
-if (resnum == 6) {
-  sd_vec <- ifelse(mort2020$covid_19_deaths < 5, 1, mort2020$covid_19_deaths * 0.2)
-  sd_vec_nat <- us_mort2020$covid_19_deaths * 0.2
-  iters <- 4000
-  warmup <- 500
-}
-if (resnum == 7) {
-  sd_vec <- ifelse(mort2020$covid_19_deaths < 7, 1, mort2020$covid_19_deaths * 0.15)
-  sd_vec_nat <- us_mort2020$covid_19_deaths * 0.15
-  iters <- 7000
-  warmup <- 1000
-}
-if (resnum %in% c(8, 15, 16, 17, 18, 19, 20, 21)) {
-  X <- model.matrix( ~ quarter * age_group + quarter * urban_rural_code + age_group * urban_rural_code + l_pop_size, data = covid19d_cty)
-  X_hu <- model.matrix( ~ quarter * age_group + quarter * urban_rural_code + urban_rural_code, data = covid19d_cty)
-  sd_vec <- ifelse(mort2020$covid_19_deaths < 5, 1, mort2020$covid_19_deaths * 0.2)
-  sd_vec_nat <- us_mort2020$covid_19_deaths * 0.2
-  iters <- 4000
-  warmup <- 1000
-}
-if (resnum == 9) {
-  X <- model.matrix( ~ quarter * age_group + quarter * urban_rural_code + age_group * urban_rural_code + l_pop_size, data = covid19d_cty)
-  X_hu <- model.matrix( ~ quarter * age_group + quarter * urban_rural_code + urban_rural_code, data = covid19d_cty)
-  sd_vec <- ifelse(mort2020$covid_19_deaths < 7, 1, mort2020$covid_19_deaths * 0.15)
-  sd_vec_nat <- us_mort2020$covid_19_deaths * 0.15
-  iters <- 7000
-  warmup <- 1000
-}
-if (resnum == 10) {
-  X <- model.matrix( ~ quarter * age_group + quarter * urban_rural_code + age_group * urban_rural_code + l_pop_size, data = covid19d_cty)
-  X_hu <- model.matrix( ~ quarter * age_group + quarter * urban_rural_code + urban_rural_code, data = covid19d_cty)
-  sd_vec <- ifelse(mort2020$covid_19_deaths < 5, 1, mort2020$covid_19_deaths * 0.2)
-  iters <- 4000
-  warmup <- 1000
-}
-if (resnum == 11) {
-  X <- model.matrix( ~ quarter * age_group + quarter * urban_rural_code + age_group * urban_rural_code + l_pop_size, data = covid19d_cty)
-  X_hu <- model.matrix( ~ quarter * age_group + quarter * urban_rural_code + urban_rural_code, data = covid19d_cty)
-  sd_vec <- ifelse(mort2020$covid_19_deaths < 7, 1, mort2020$covid_19_deaths * 0.15)
-  iters <- 4000
-  warmup <- 1000
-}
-if (resnum == 12) {
-  ## Poisson assumption
-  sd_vec <- ifelse(mort2020$covid_19_deaths < 1, 1, sqrt(mort2020$covid_19_deaths))
-  sd_vec_nat <- sqrt(us_mort2020$covid_19_deaths)
-  iters <- 5000
-  warmup <- 1000
-}
-if (resnum == 13) {
-  ## Negative Binomial assumption: r = 1
-  sd_vec <- ifelse(mort2020$covid_19_deaths < 1, 1, sqrt(mort2020$covid_19_deaths + 1 * mort2020$covid_19_deaths^2))
-  sd_vec_nat <- sqrt(us_mort2020$covid_19_deaths + 1 * us_mort2020$covid_19_deaths^2)
-  iters <- 4000
-  warmup <- 1000
-}
-if (resnum == 14) {
-  ## Negative Binomial assumption: r = 17 (estimated above)
-  sd_vec <- ifelse(mort2020$covid_19_deaths < 1, 1, sqrt(mort2020$covid_19_deaths + (1/17) * mort2020$covid_19_deaths^2))
-  sd_vec_nat <- sqrt(us_mort2020$covid_19_deaths + (1/17) * us_mort2020$covid_19_deaths^2)
-  iters <- 4000
-  warmup <- 1000
-}
+X <- model.matrix( ~ quarter * age_group + quarter * urban_rural_code + age_group * urban_rural_code + l_pop_size, data = covid19d_cty)
+X_hu <- model.matrix( ~ quarter * age_group + quarter * urban_rural_code + urban_rural_code, data = covid19d_cty)
+sd_vec <- ifelse(mort2020$covid_19_deaths < 5, 1, mort2020$covid_19_deaths * 0.2)
+sd_vec_nat <- us_mort2020$covid_19_deaths * 0.2
+iters <- 4000
+warmup <- 1000
 
 
 data_ls <- list(
@@ -170,13 +82,13 @@ data_ls <- list(
   gp_ix = covid19d_cty$gp_ix
 )
 
-if (resnum %in% c(6, 7, 8, 9, 12, 13, 14)) {
-  data_ls$nat_d <- us_mort2020$covid_19_deaths
-  data_ls$sd_nat_d <- sd_vec_nat
-  data_ls$n_nat_d <- nrow(us_mort2020)
-  data_ls$n_gp_nat <- nrow(us_mort2020)
-  data_ls$gp_nat_ix <- covid19d_cty$age_num
+data_ls$nat_d <- us_mort2020$covid_19_deaths
+data_ls$sd_nat_d <- sd_vec_nat
+data_ls$n_nat_d <- nrow(us_mort2020)
+data_ls$n_gp_nat <- nrow(us_mort2020)
+data_ls$gp_nat_ix <- covid19d_cty$age_num
 
+if (resnum %in% 8) {
   begin_time <- Sys.time()
   fit_hurdle <- stan(
     file = "stan/impute_hurdle_agg_nat.stan",  # Stan program
@@ -192,27 +104,7 @@ if (resnum %in% c(6, 7, 8, 9, 12, 13, 14)) {
   print(Sys.time() - begin_time)
 
 }
-if (resnum %in% c(1, 2, 3, 4, 5, 10, 11)) {
-  begin_time <- Sys.time()
-  fit_hurdle <- stan(
-    file = "stan/impute_hurdle_agg.stan",  # Stan program
-    data = data_ls,         # named list of data
-    chains = 3,             # number of Markov chains
-    warmup = warmup,           # number of warmup iterations per chain
-    iter = iters,            # total number of iterations per chain
-    cores = 3,              # number of cores (could use one per chain)
-    refresh = 10,
-    pars = c("bQ", "shape", "b_hu", "Ymi", "y_sim", "log_lik"),
-    seed = 20210519
-  )
-  print(Sys.time() - begin_time)
-}
 if (resnum %in% 15) {
-  data_ls$nat_d <- us_mort2020$covid_19_deaths
-  data_ls$sd_nat_d <- sd_vec_nat
-  data_ls$n_nat_d <- nrow(us_mort2020)
-  data_ls$n_gp_nat <- nrow(us_mort2020)
-  data_ls$gp_nat_ix <- covid19d_cty$age_num
   data_ls$miss_sd <- 5.0
 
   begin_time <- Sys.time()
@@ -230,11 +122,6 @@ if (resnum %in% 15) {
   print(Sys.time() - begin_time)
 }
 if (resnum %in% 16) {
-  data_ls$nat_d <- us_mort2020$covid_19_deaths
-  data_ls$sd_nat_d <- sd_vec_nat
-  data_ls$n_nat_d <- nrow(us_mort2020)
-  data_ls$n_gp_nat <- nrow(us_mort2020)
-  data_ls$gp_nat_ix <- covid19d_cty$age_num
   data_ls$miss_sd <- 10.0
 
   begin_time <- Sys.time()
@@ -252,11 +139,6 @@ if (resnum %in% 16) {
   print(Sys.time() - begin_time)
 }
 if (resnum %in% 17) {
-  data_ls$nat_d <- us_mort2020$covid_19_deaths
-  data_ls$sd_nat_d <- sd_vec_nat
-  data_ls$n_nat_d <- nrow(us_mort2020)
-  data_ls$n_gp_nat <- nrow(us_mort2020)
-  data_ls$gp_nat_ix <- covid19d_cty$age_num
   data_ls$miss_sd1 <- 5.0
   data_ls$miss_sd2 <- 10.0
   data_ls$Nmi1 <- nrow(covid19d_cty[is.na(y) & age_group %in% c("18-29", "30-39", "40-49")])
@@ -282,11 +164,6 @@ if (resnum %in% 17) {
   print(Sys.time() - begin_time)
 }
 if (resnum %in% 18) {
-  data_ls$nat_d <- us_mort2020$covid_19_deaths
-  data_ls$sd_nat_d <- sd_vec_nat
-  data_ls$n_nat_d <- nrow(us_mort2020)
-  data_ls$n_gp_nat <- nrow(us_mort2020)
-  data_ls$gp_nat_ix <- covid19d_cty$age_num
   data_ls$miss_sd1 <- 5.0
   data_ls$miss_sd2 <- 20.0
   data_ls$Nmi1 <- nrow(covid19d_cty[age_group %in% c("18-29", "30-39", "40-49")])
@@ -312,11 +189,6 @@ if (resnum %in% 18) {
   print(Sys.time() - begin_time)
 }
 if (resnum %in% 19) {
-  data_ls$nat_d <- us_mort2020$covid_19_deaths
-  data_ls$sd_nat_d <- sd_vec_nat
-  data_ls$n_nat_d <- nrow(us_mort2020)
-  data_ls$n_gp_nat <- nrow(us_mort2020)
-  data_ls$gp_nat_ix <- covid19d_cty$age_num
   data_ls$miss_sd1 <- 6
   data_ls$miss_sd2 <- 15.0
   data_ls$Nmi1 <- nrow(covid19d_cty[is.na(y) & age_group %in% c("18-29", "30-39", "40-49")])
@@ -342,11 +214,6 @@ if (resnum %in% 19) {
   print(Sys.time() - begin_time)
 }
 if (resnum %in% 20) {
-  data_ls$nat_d <- us_mort2020$covid_19_deaths
-  data_ls$sd_nat_d <- sd_vec_nat
-  data_ls$n_nat_d <- nrow(us_mort2020)
-  data_ls$n_gp_nat <- nrow(us_mort2020)
-  data_ls$gp_nat_ix <- covid19d_cty$age_num
   data_ls$miss_sd1 <- 7
   data_ls$miss_sd2 <- 15.0
   data_ls$Nmi1 <- nrow(covid19d_cty[is.na(y) & age_group %in% c("18-29", "30-39", "40-49")])
@@ -372,12 +239,6 @@ if (resnum %in% 20) {
   print(Sys.time() - begin_time)
 }
 if (resnum %in% 21) { # structure the sd of the prior to be
-  data_ls$nat_d <- us_mort2020$covid_19_deaths
-  data_ls$sd_nat_d <- sd_vec_nat
-  data_ls$n_nat_d <- nrow(us_mort2020)
-  data_ls$n_gp_nat <- nrow(us_mort2020)
-  data_ls$gp_nat_ix <- covid19d_cty$age_num
-
   data_ls$n_miss_sd <- max(covid19d_cty$age_num)
   tmp_dt <- covid19d_cty[is.na(y)]
   data_ls$Jmi_gp <- tmp_dt$age_num
@@ -396,6 +257,32 @@ if (resnum %in% 21) { # structure the sd of the prior to be
   )
   print(Sys.time() - begin_time)
 }
+if (resnum %in% 22) { # structure the sd of the prior to be
+  tmp_lvl <- lapply(levels(covid19d_cty$urban_rural_code),
+                    function(x) paste0(x, "; ", levels(covid19d_cty$age_group)))
+  tmp_lvl <- unlist(tmp_lvl)
+  tmp_cate <- factor(paste0(covid19d_cty$urban_rural_code,
+                            "; ", covid19d_cty$age_group),
+                     levels = tmp_lvl)
+  covid19d_cty[, au_gp_num := as.numeric(tmp_cate)]
 
+  data_ls$n_miss_sd <- max(covid19d_cty$au_gp_num)
+  tmp_dt <- covid19d_cty[is.na(y)]
+  data_ls$Jmi_gp <- tmp_dt$au_gp_num
+
+  begin_time <- Sys.time()
+  fit_hurdle <- stan(
+    file = "stan/impute_hurdle_structure_prior.stan",  # Stan program
+    data = data_ls,         # named list of data
+    chains = 3,             # number of Markov chains
+    warmup = warmup,           # number of warmup iterations per chain
+    iter = iters,            # total number of iterations per chain
+    cores = 3,              # number of cores (could use one per chain)
+    refresh = 10,
+    pars = c("bQ", "shape", "b_hu", "Ymi", "y_sim", "v_sd_miss", "log_lik"),
+    seed = 20210519
+  )
+  print(Sys.time() - begin_time)
+}
 saveRDS(fit_hurdle, paste0("results/fit_hurdle_agg", resnum, ".RDS"))
 
