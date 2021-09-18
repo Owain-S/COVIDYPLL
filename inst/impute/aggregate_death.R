@@ -15,8 +15,8 @@ library(mapproj)
 library(ggthemes)
 library(raster)
 
-# models 2, 3, 7, 8, 9, 11, 12, 14, 15
-i <- 15
+# models 2, 3, 7, 8, 9, 11, 12, 14, 15, 16, 17, 18
+i <- 18
 
 sum_est <- readRDS(paste0("inst/impute/results/sum_estimates_hurdle_agg", i,".RDS"))
 

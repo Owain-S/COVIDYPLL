@@ -11,7 +11,7 @@ library(ggpubr)
 library(parallel)
 library(loo)
 
-i <- 15 # there are models 1, 2, 3 (4 and 5 are deleted)
+i <- 18 # there are models 1, 2, 3 (4 and 5 are deleted)
 
 fit_hurdle <- readRDS(paste0("inst/impute/results/fit_hurdle_agg", i,".RDS"))
 ix <- c(1:nrow(covid19d_cty))
@@ -25,7 +25,7 @@ saveRDS(loo_1, paste0("inst/impute/results/loo", i,".RDS"))
 
 rm(list = ls())
 
-i <- 8 # there are models 1, 2, 3 (4 and 5 are deleted)
+i <- 18
 
 loo_out <- readRDS(paste0("inst/impute/results/loo", i,".RDS"))
 print(loo_out)
@@ -49,13 +49,13 @@ write.csv(outlier_dt, paste0("inst/impute/results/outlier from loo ", i,".csv"),
 
 rm(list = ls())
 
-i <- 15  # there are models 1, 2, 3 (4 and 5 are deleted)
+i <- 18  # there are models 1, 2, 3 (4 and 5 are deleted)
 
 if (i %in% c(1:2, 6)) {
   warmup <- 500 + 1
 }
 
-if (i %in% c(3:5, 7:15)) {
+if (i %in% c(3:5, 7:18)) {
   warmup <- 1000 + 1
 }
 
