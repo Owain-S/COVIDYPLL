@@ -13,7 +13,7 @@ calculate_ypll(
 )
 }
 \arguments{
-\item{dt}{A \code{data.table} include the following columns: \code{covid_19_deaths}, \code{pop_size}, \code{std_pop_wgt}, \code{avg_leXXXX} and other variables that could be used for summary statistics}
+\item{dt}{A \code{data.table} include the following columns: \code{covid_19_deaths}, \code{pop_size}, \code{std_pop_wgt}, \code{avg_le}, \code{leXXXX} and other variables that could be used for summary statistics}
 
 \item{byvar}{The variable used for aggregating deaths, YPLL, and population size}
 
@@ -35,7 +35,8 @@ and total YPLL (\code{tot_ypll}). If the input argument, \code{age_adjusted_outp
 \code{TRUE}, the \code{data.table} returned includes columns \code{covid19_death_rate_aa} and \code{ypll_rate_aa},
 which are age adjusted (\verb{_aa}) rates. If the input argument, \code{age_adjusted_output}, is set to
 \code{FALSE}, the \code{data.table} returned includes columns \code{covid19_death_rate_agewt} and
-\code{ypll_rate_agewt}, which are age weights (\verb{_agewt}) that can be used for further calculation.
+\code{ypll_rate_agewt}, which are age weights (\verb{_agewt}) that can be used for
+further calculation.
 }
 \description{
 Calculate and aggregate COVID-19 death (rate) and years of potential life lost (rate) by county characteristics

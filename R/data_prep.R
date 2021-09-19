@@ -267,8 +267,8 @@ calculate_provisional_le <- function() {
   us_mort[, Tx := sum(Lx) - shift(cumsum(Lx), type = "lag")]
   us_mort$Tx[1] <- sum(us_mort$Lx)
   us_mort[, ex := Tx / lx]
-  us_mort[, avg_le2020 := copy(ex)]
-  us_mort <- us_mort[, .(age_group, avg_le2020)]
+  us_mort[, le2020 := copy(ex)]
+  us_mort <- us_mort[, .(age_group, le2020)]
 
   ## Lift expectancy in 2018 https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Publications/NVSR/69-12/Table01.xlsx
   ## Lift expectancy in 2017 https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Publications/NVSR/68_07/Table01.xlsx
@@ -303,15 +303,15 @@ calculate_provisional_le <- function() {
                        Lx = max_Tx - min_Tx,
                        lx = max_lx)]
     sublft[, `:=` (qx = dx / lx,
-                       Tx = max_Tx)]
+                   Tx = max_Tx)]
     # sublft$Tx[1] <- sum(sublft$Lx)
-    sublft[, paste0("avg_le", names(x)) := Tx / lx]
-    keep_cols <- c("age_group", grep("avg_le", colnames(sublft), value = T))
+    sublft[, paste0("le", names(x)) := Tx / lx]
+    keep_cols <- c("age_group", grep("le", colnames(sublft), value = T))
     sublft[, ..keep_cols]
   })
 
   lftable <- Reduce(function(x, y) merge(x, y, by = "age_group", all.x = TRUE), lftable)
-  lftable[, avg_le := (avg_le2018 + avg_le2017) / 2]
+  lftable[, avg_le := (le2018 + le2017) / 2]
 
   us_mort <- merge(us_mort, lftable, by = "age_group", all.x = T)
 

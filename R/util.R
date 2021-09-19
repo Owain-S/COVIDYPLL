@@ -87,27 +87,6 @@ bind1000samples <- function() {
   return(out_dt)
 }
 
-#' @title Calculate YPLL
-#' @import data.table
-#' @export
-calculate_ypll_old <- function(dt) {
-  if (!is.data.table(dt)) stop("This is not data.table")
-  calc_columns <- c("covid_19_deaths", "avg_le2020", "pop_size", "std_pop_wgt")
-  if (!all(calc_columns %in% colnames(dt))) stop("check whether the columns has \'covid_19_deaths\', \'avg_le2020\', \'pop_size\', \'std_pop_wgt\'")
-  dt[, `:=` (covid19_death_rate = (covid_19_deaths / pop_size) * 100000,
-             covid19_death_rate_age_adjusted = (covid_19_deaths / pop_size) * 100000 * std_pop_wgt, # age_adjusted death rate https://www.cdc.gov/nchs/data/statnt/statnt06rv.pdf
-             tot_ypll = covid_19_deaths * avg_le2020,
-             ypll_rate = ((covid_19_deaths / pop_size) * 100000) * avg_le2020,
-             ypll_rate_age_adjusted = ((covid_19_deaths / pop_size) * 100000) * avg_le2020 * std_pop_wgt)]
-
-  dt[pop_size == 0]$covid19_death_rate <- 0
-  dt[pop_size == 0]$covid19_death_rate_age_adjusted <- 0
-  dt[pop_size == 0]$tot_ypll <- 0
-  dt[pop_size == 0]$ypll_rate <- 0
-  dt[pop_size == 0]$ypll_rate_age_adjusted <- 0
-  dt
-}
-
 #' @title Summarize variables to get mean or the 95% intervals
 #' @param x A vector of values
 #' @export
@@ -118,7 +97,7 @@ summarize_vars <- function(x) {
 }
 
 #' @title Calculate and aggregate COVID-19 death (rate) and years of potential life lost (rate) by county characteristics
-#' @param dt A `data.table` include the following columns: `covid_19_deaths`, `pop_size`, `std_pop_wgt`, `avg_leXXXX` and other variables that could be used for summary statistics
+#' @param dt A `data.table` include the following columns: `covid_19_deaths`, `pop_size`, `std_pop_wgt`, `avg_le`, `leXXXX` and other variables that could be used for summary statistics
 #' @param byvar The variable used for aggregating deaths, YPLL, and population size
 #' @param age_adjusted_output Whether to get age adjusted death rate or YPLL rate
 #' @param year_rle Specify the year of remaining life expectancy data. The default is the average remaining life expectancy between 2017 and 2018.
@@ -144,18 +123,20 @@ calculate_ypll <- function(dt,
                            year_rle = NA, # Default using average LE between 2017 and 2018
                            export_data_by_simno = FALSE) {
   if (!is.data.table(dt)) stop("This is not data.table")
-  calc_columns <- c("covid_19_deaths", "pop_size", "std_pop_wgt")
-  criteria <- all(calc_columns %in% colnames(dt)) & (length(grep("avg_le", c("avg_le2020", "avg_le2018", "avg_le2017"))) > 0)
+  calc_columns <- c("covid_19_deaths", "pop_size", "std_pop_wgt", "avg_le",
+                    paste0("le", c(2020, 2018, 2017)))
+  col_names <- colnames(dt)
+  criteria <- all(calc_columns %in% col_names)
   if (!criteria) {
-    stop("check whether the columns has \'covid_19_deaths\', \'pop_size\', \'std_pop_wgt\', or any of the \'avg_leXXXX\'")
+    stop("check whether the columns has \'covid_19_deaths\', \'pop_size\', \'std_pop_wgt\',  \'avg_le\' or any of the \'leXXXX\'")
   }
 
   if (is.na(year_rle)) {
     dt[, rle := avg_le]
   } else {
-    if (year_rle == 2017) dt[, rle := avg_le2017]
-    if (year_rle == 2018) dt[, rle := avg_le2018]
-    if (year_rle == 2020) dt[, rle := avg_le2020]
+    if (year_rle == 2017) dt[, rle := le2017]
+    if (year_rle == 2018) dt[, rle := le2018]
+    if (year_rle == 2020) dt[, rle := le2020]
   }
 
   if (!is.null(byvar)) {
