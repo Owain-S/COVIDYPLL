@@ -53,10 +53,13 @@ Here are the steps of using this package.
       * `state`: abbreviation of U.S. states or localities, including 50 states, Washington DC, and New York City (NYC).  
       * `svi_cate`: County social vulnerability, including low, moderate, and high. 
       * `pop_size`: Population size by county and age group. Data from [ACS](https://data.census.gov/cedsci/table?t=Populations%20and%20People&g=0100000US.050000_0500000US22033,22071,22087,22095&tid=ACSST5Y2019.S0101&hidePreview=true). 
-      * `avg_le2020`: Remaining life expectancy by age group, estimated using death data in 2020. 
-      * `avg_le2018`: Remaining life expectancy by age group in 2018. 
-      * `avg_le2017`: Remaining life expectancy by age group in 2017.
-      * `avg_le`: 
+      * `le2020`: Remaining life expectancy by age group, estimated using death data in 2020. 
+      * `le2018`: Remaining life expectancy by age group in 2018. 
+      * `le2017`: Remaining life expectancy by age group in 2017.
+      * `avg_le`: Average remaining life expectancy between 2017 and 2018. 
+      * `std_pop_wgt`: standard population weight from SEER website. 
+      * `simno`: Simulation ID, ranging from 1 to 1000. 
+      * `rle`: The remaining life expectancy that is used in YPLL calculation. 
 
 2. 
 
